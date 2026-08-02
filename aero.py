@@ -1,0 +1,262 @@
+# aero.py
+"""Liquid glass painting for Typing Aquarium.
+
+Every surface is the same recipe: the blurred theme art showing through, the
+same art re-sampled larger inside a rim band so the edge bends light, a curved
+specular highlight, and light piping along the bottom inner edge.
+
+The window cannot blur the real desktop behind it - Qt has no cross-platform
+way to do that - so the window paints a blurred copy of the currently selected
+tank artwork as its own backdrop, and every panel refracts that. It also means
+the whole app re-tints when the tank theme changes.
+"""
+
+import os
+
+from PIL import Image, ImageFilter
+from PyQt6.QtWidgets import QWidget, QFrame
+from PyQt6.QtGui import (QPainter, QColor, QLinearGradient, QRadialGradient, QPainterPath,
+                         QPixmap, QImage, QPen, QBrush, QTransform)
+from PyQt6.QtCore import Qt, QRectF, QPoint, QPointF
+
+# ===== palette =====
+AQUA = "#8AF0FA"
+VIOLET = "#C6B0FF"
+AMBER = "#FFD696"
+TEXT = "#FFFFFF"
+TEXT_DIM = "rgba(222, 243, 255, 200)"
+
+SHELL_TINT = QColor(28, 122, 192, 104)
+PANEL_TINT = QColor(30, 124, 190, 92)
+BAR_TINT = QColor(26, 116, 186, 108)
+ACTIVE_TINT = QColor(120, 235, 245, 118)
+SUNK_TINT = QColor(16, 80, 138, 80)
+
+# The backdrop is built once at this height and anchored to the top, so the
+# window can animate between page heights without re-blurring every frame.
+BACKDROP_HEIGHT = 820
+
+_backdrop_cache = {}
+
+# While the window animates between page heights, every glass surface would
+# otherwise re-run its refraction pass on every frame - a scaled pixmap through
+# a compound clip path, per panel, at 60fps. Fast mode drops the two expensive
+# passes for the duration; full quality is restored when the animation ends.
+_fast_mode = False
+
+
+def set_fast_mode(enabled):
+    global _fast_mode
+    _fast_mode = enabled
+
+
+def fast_mode():
+    return _fast_mode
+
+
+def rounded(rect, radius):
+    path = QPainterPath()
+    path.addRoundedRect(rect, radius, radius)
+    return path
+
+
+def backdrop_pixmap(image_path, width, height=BACKDROP_HEIGHT, blur=30, dim=0.42):
+    """Blurred, blue-shifted copy of the tank art, used as the window backdrop."""
+    key = (image_path, width, height, blur, dim)
+    if key in _backdrop_cache:
+        return _backdrop_cache[key]
+
+    if not os.path.exists(image_path):
+        pix = QPixmap(width, height)
+        pix.fill(QColor(10, 46, 84))
+        _backdrop_cache[key] = pix
+        return pix
+
+    im = Image.open(image_path).convert("RGB")
+    ratio = max(width / im.width, height / im.height)
+    im = im.resize((int(im.width * ratio) + 1, int(im.height * ratio) + 1), Image.LANCZOS)
+    left, top = (im.width - width) // 2, (im.height - height) // 2
+    im = im.crop((left, top, left + width, top + height))
+    im = im.filter(ImageFilter.GaussianBlur(blur))
+    if dim:
+        im = Image.blend(im, Image.new("RGB", im.size, (4, 22, 46)), dim)
+
+    im = im.convert("RGBA")
+    qimg = QImage(im.tobytes("raw", "RGBA"), im.width, im.height, QImage.Format.Format_RGBA8888)
+    pix = QPixmap.fromImage(qimg.copy())
+    _backdrop_cache[key] = pix
+    return pix
+
+
+def paint_liquid(painter, rect, radius, backdrop, origin=QPoint(0, 0),
+                 tint=PANEL_TINT, refract=1.26, gloss=True, piping=True, thickness=6):
+    """Paint one pane of liquid glass.
+
+    `origin` is where this widget sits inside the window, so the backdrop lines
+    up across every panel instead of restarting at each widget's corner.
+    """
+    body = rounded(rect, radius)
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+    # 1. frosted body
+    painter.setClipPath(body)
+    if backdrop is not None:
+        painter.drawPixmap(-origin.x(), -origin.y(), backdrop)
+
+    # 2. refracted rim - the same backdrop, larger, only inside the border band
+    inner = QRectF(rect.x() + thickness, rect.y() + thickness,
+                   rect.width() - thickness * 2, rect.height() - thickness * 2)
+    if not _fast_mode and inner.width() > 0 and inner.height() > 0:
+        ring = body.subtracted(rounded(inner, max(1.0, radius - thickness)))
+        painter.setClipPath(ring)
+        if backdrop is not None:
+            t = QTransform()
+            t.translate(rect.center().x(), rect.center().y())
+            t.scale(refract, refract)
+            t.translate(-rect.center().x(), -rect.center().y())
+            painter.setTransform(t, True)
+            painter.drawPixmap(-origin.x(), -origin.y(), backdrop)
+            painter.resetTransform()
+            painter.setClipPath(ring)
+        painter.fillPath(ring, QColor(255, 255, 255, 30))
+
+    # 3. tint
+    painter.setClipPath(body)
+    grad = QLinearGradient(rect.topLeft(), rect.bottomLeft())
+    grad.setColorAt(0.0, QColor(tint.red(), tint.green(), tint.blue(), min(255, int(tint.alpha() * 1.15))))
+    grad.setColorAt(0.5, QColor(tint.red(), tint.green(), tint.blue(), int(tint.alpha() * 0.55)))
+    grad.setColorAt(1.0, QColor(tint.red(), tint.green(), tint.blue(), int(tint.alpha() * 0.95)))
+    painter.fillPath(body, grad)
+
+    # 4. curved specular - an ellipse overshooting the top reads as a bulge
+    if gloss and not _fast_mode:
+        h = rect.height() * 0.62
+        bulge = QRectF(rect.x() - rect.width() * 0.18, rect.y() - h * 0.72,
+                       rect.width() * 1.36, h * 1.55)
+        rg = QRadialGradient(bulge.center(), bulge.width() / 2)
+        rg.setColorAt(0.0, QColor(255, 255, 255, 132))
+        rg.setColorAt(0.62, QColor(255, 255, 255, 54))
+        rg.setColorAt(1.0, QColor(255, 255, 255, 0))
+        painter.setBrush(rg)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(bulge)
+
+    # 5. light piping - light exiting thick glass at the bottom
+    if piping:
+        band = QRectF(rect.x(), rect.bottom() - rect.height() * 0.34,
+                      rect.width(), rect.height() * 0.34)
+        bg = QLinearGradient(band.topLeft(), band.bottomLeft())
+        bg.setColorAt(0.0, QColor(255, 255, 255, 0))
+        bg.setColorAt(0.78, QColor(190, 245, 255, 26))
+        bg.setColorAt(1.0, QColor(226, 252, 255, 96))
+        painter.fillRect(band, bg)
+
+    painter.setClipping(False)
+
+    # 6. rims - gradient pen, bright where the light lands
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.setPen(QPen(QColor(4, 24, 48, 120), 1.4))
+    painter.drawPath(body)
+
+    rim = QLinearGradient(rect.topLeft(), rect.bottomLeft())
+    rim.setColorAt(0.0, QColor(255, 255, 255, 240))
+    rim.setColorAt(0.30, QColor(255, 255, 255, 130))
+    rim.setColorAt(0.75, QColor(255, 255, 255, 60))
+    rim.setColorAt(1.0, QColor(226, 250, 255, 150))
+    painter.setPen(QPen(QBrush(rim), 1.3))
+    painter.drawPath(rounded(QRectF(rect.x() + 1.2, rect.y() + 1.2,
+                                    rect.width() - 2.4, rect.height() - 2.4),
+                             max(0.5, radius - 1)))
+    painter.restore()
+
+
+class LiquidMixin:
+    """Shared glass painting + a render cache.
+
+    The cache matters: the fish repaint at 50 FPS, and re-running the refraction
+    pass for every panel on every frame would be wasteful. Chrome only rebuilds
+    when its size, position or theme actually changes.
+    """
+
+    radius = 16
+    tint = PANEL_TINT
+    refract = 1.26
+    gloss = True
+    piping = True
+    thickness = 6
+
+    def _init_glass(self):
+        self._glass_cache = None
+        self._glass_key = None
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+    def _backdrop(self):
+        window = self.window()
+        getter = getattr(window, "glass_backdrop", None)
+        return getter() if getter else None
+
+    def _origin(self):
+        return self.mapTo(self.window(), QPoint(0, 0))
+
+    def invalidate_glass(self):
+        self._glass_key = None
+        self.update()
+
+    def paint_glass(self, painter):
+        backdrop = self._backdrop()
+        origin = self._origin()
+        key = (self.width(), self.height(), origin.x(), origin.y(),
+               id(backdrop), self.tint.rgba(), self.radius, _fast_mode)
+
+        if self._glass_key != key or self._glass_cache is None:
+            cache = QPixmap(self.size())
+            cache.fill(Qt.GlobalColor.transparent)
+            cp = QPainter(cache)
+            paint_liquid(cp, QRectF(0.5, 0.5, self.width() - 1, self.height() - 1),
+                         self.radius, backdrop, origin, self.tint,
+                         self.refract, self.gloss, self.piping, self.thickness)
+            cp.end()
+            self._glass_cache = cache
+            self._glass_key = key
+
+        painter.drawPixmap(0, 0, self._glass_cache)
+
+
+class LiquidPanel(QWidget, LiquidMixin):
+    def __init__(self, parent=None, radius=16, tint=PANEL_TINT, refract=1.26,
+                 gloss=True, piping=True, thickness=6):
+        super().__init__(parent)
+        self.radius, self.tint, self.refract = radius, tint, refract
+        self.gloss, self.piping, self.thickness = gloss, piping, thickness
+        self._init_glass()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        self.paint_glass(p)
+        p.end()
+
+
+class LiquidShell(QFrame, LiquidMixin):
+    """The window body: blurred theme art, then glass over it."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.radius = 22
+        self.tint = SHELL_TINT
+        self.refract = 1.16
+        self.thickness = 9
+        self.gloss = False   # too large for a single highlight to look right
+        self._init_glass()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        self.paint_glass(p)
+        p.end()
+
+
+def label_css(size, colour=TEXT, weight=500, italic=False):
+    return (f"color: {colour}; font-size: {size}px; font-family: 'DM Sans';"
+            f" font-weight: {weight}; background: transparent;"
+            f" {'font-style: italic;' if italic else ''}")
