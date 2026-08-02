@@ -11,7 +11,6 @@ from PyQt6.QtCore import Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, QR
 from ui_components import RoundedBackgroundWidget, StatCard, SpriteSheetFish, TabButton
 from fish_manager import SwimmingFish
 from sound_manager import sounds
-import aero
 
 
 class AquariumWidget(QWidget):
@@ -39,13 +38,6 @@ class AquariumWidget(QWidget):
         self.current_fish_count = len(initial_fish_list) if initial_fish_list else 0
         self.drag_position = None
 
-        # Blurred backdrop every glass surface refracts. Built before any child
-        # widget exists, because they sample it while painting.
-        self.tank_background = (self.time_manager.get_setting("tank_background")
-                                if self.time_manager else "aquarium_background.png")
-        self._backdrop = aero.backdrop_pixmap(
-            os.path.join("assets", self.tank_background), 378)
-
         # Load fish configurations from JSON
         self.load_fish_configs()
 
@@ -60,9 +52,15 @@ class AquariumWidget(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # Main border frame - liquid glass over a blurred copy of the tank art
-        self.border_widget = aero.LiquidShell(self)
+        # Main border frame
+        self.border_widget = QFrame(self)
         self.border_widget.setGeometry(0, 0, self.window_width, self.window_height)
+        self.border_widget.setStyleSheet("""
+            QFrame {
+                background-color: rgba(7, 18, 35, 240);
+                border-radius: 20px;
+            }
+        """)
 
         # Main layout
         main_layout = QVBoxLayout(self.border_widget)
@@ -71,18 +69,10 @@ class AquariumWidget(QWidget):
         main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # ===== TOP BAR =====
-        # Inset inside a transparent wrapper so the glass strip floats rather
-        # than running edge to edge.
-        top_wrap = QWidget()
-        top_wrap.setStyleSheet("background: transparent;")
-        top_wrap_layout = QHBoxLayout(top_wrap)
-        top_wrap_layout.setContentsMargins(10, 10, 10, 0)
-
-        self.top_bar = aero.LiquidPanel(radius=17, tint=aero.BAR_TINT,
-                                        refract=1.3, thickness=5)
-        self.top_bar.setFixedHeight(34)
+        self.top_bar = QWidget()
+        self.top_bar.setFixedHeight(26)
         top_bar_layout = QHBoxLayout(self.top_bar)
-        top_bar_layout.setContentsMargins(0, 0, 0, 0)
+        top_bar_layout.setContentsMargins(0, 12, 0, 0)
 
         # Left side - Window controls
         left_controls = QWidget()
@@ -173,12 +163,10 @@ class AquariumWidget(QWidget):
         top_bar_layout.setStretch(1, 2)
         top_bar_layout.setStretch(2, 1)
 
-        top_wrap_layout.addWidget(self.top_bar)
-        main_layout.addWidget(top_wrap)
+        main_layout.addWidget(self.top_bar)
 
         # ===== DIVIDER 1 =====
         divider1 = self.create_divider()
-        divider1.setVisible(False)  # the glass strip already separates the header
         main_layout.addWidget(divider1)
         self.divider1 = divider1
 
@@ -203,15 +191,19 @@ class AquariumWidget(QWidget):
 
         self.background_widget = RoundedBackgroundWidget(self.aquarium_container)
         self.background_widget.setGeometry(0, 0, aquarium_width, aquarium_height)
-        self.background_widget.set_image_path(os.path.join("assets", self.tank_background))
+        saved_background = (self.time_manager.get_setting("tank_background")
+                            if self.time_manager else "aquarium_background.png")
+        self.background_widget.set_image_path(os.path.join("assets", saved_background))
         self.background_widget.set_water_overlay(True)
         self.background_widget.lower()
 
         # Fish count overlay
-        self.fish_count_widget = aero.LiquidPanel(
-            self.aquarium_container, radius=15, tint=aero.ACTIVE_TINT,
-            refract=1.4, thickness=4)
+        self.fish_count_widget = QWidget(self.aquarium_container)
         self.fish_count_widget.setGeometry(aquarium_width - 88, 8, 80, 30)
+        self.fish_count_widget.setStyleSheet("""
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+        """)
 
         fish_count_layout = QHBoxLayout(self.fish_count_widget)
         fish_count_layout.setContentsMargins(12, 0, 8, 0)
@@ -246,9 +238,9 @@ class AquariumWidget(QWidget):
         stats_layout.setSpacing(8)
         stats_layout.setContentsMargins(0, 12, 0, 0)
 
-        self.chars_card = StatCard("Chars today", aero.AQUA)
-        self.wpm_card = StatCard("wpm", aero.VIOLET)
-        self.focus_card = StatCard("Total typing time", aero.AMBER)
+        self.chars_card = StatCard("Chars today")
+        self.wpm_card = StatCard("wpm")
+        self.focus_card = StatCard("Total typing time")
 
         stats_layout.addWidget(self.chars_card, 1)
         stats_layout.addWidget(self.wpm_card, 1)
@@ -283,22 +275,15 @@ class AquariumWidget(QWidget):
 
         # ===== DIVIDER 2 =====
         divider2 = self.create_divider()
-        divider2.setVisible(False)  # the tab bar glass reads as the boundary
         main_layout.addWidget(divider2)
         self.divider2 = divider2
 
         # ===== TAB BAR AT BOTTOM =====
         self.bottom_buttons = QWidget()
-        self.bottom_buttons.setFixedHeight(66)
-        self.bottom_buttons.setStyleSheet("background: transparent;")
-        bottom_wrap = QHBoxLayout(self.bottom_buttons)
-        bottom_wrap.setContentsMargins(10, 2, 10, 10)
-
-        self.tab_bar = aero.LiquidPanel(radius=24, tint=aero.BAR_TINT,
-                                        refract=1.22, thickness=7)
-        bottom_layout = QHBoxLayout(self.tab_bar)
-        bottom_layout.setSpacing(4)
-        bottom_layout.setContentsMargins(4, 3, 4, 3)
+        self.bottom_buttons.setFixedHeight(44)
+        bottom_layout = QHBoxLayout(self.bottom_buttons)
+        bottom_layout.setSpacing(56)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.chest_btn = TabButton("assets/treasure_chest_icon.png", "Collection", self.show_collection)
@@ -309,7 +294,6 @@ class AquariumWidget(QWidget):
         bottom_layout.addWidget(self.tank_btn)
         bottom_layout.addWidget(self.stats_btn)
 
-        bottom_wrap.addWidget(self.tab_bar)
         main_layout.addWidget(self.bottom_buttons)
 
         # Pin state - ONLY CONTROLS AQUARIUM
@@ -378,11 +362,6 @@ class AquariumWidget(QWidget):
         self.setMinimumSize(0, 0)
         self.setMaximumSize(16777215, 16777215)
 
-        # Drop the costly glass passes while the geometry is in motion,
-        # otherwise every panel re-renders its refraction on every frame and
-        # the animation crawls.
-        aero.set_fast_mode(True)
-
         self.anim = QPropertyAnimation(self, b"geometry")
         self.anim.setDuration(300)
         self.anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
@@ -391,18 +370,8 @@ class AquariumWidget(QWidget):
         self.anim.start()
 
     def restore_fixed_size(self):
-        """Restore fixed size and full-quality glass after the animation."""
+        """Restore fixed size after animation completes"""
         self.setFixedSize(self.width(), self.height())
-        aero.set_fast_mode(False)
-        self.refresh_glass()
-
-    def refresh_glass(self):
-        """Rebuild every liquid surface (after a resize or a theme change)."""
-        for child in self.findChildren(QWidget):
-            if isinstance(child, aero.LiquidMixin):
-                child.invalidate_glass()
-        self.border_widget.invalidate_glass()
-        self.update()
 
     def fade_in_widgets(self):
         """Fade in stats and buttons (dots removed)"""
@@ -499,20 +468,9 @@ class AquariumWidget(QWidget):
             self.animate_resize(QRect(self.x(), self.y(), self.window_width, target_height))
             self.border_widget.setGeometry(0, 0, self.window_width, target_height)
 
-    def glass_backdrop(self):
-        """The blurred art every liquid-glass surface refracts."""
-        return self._backdrop
-
     def apply_tank_background(self, filename):
-        """Swap the tank artwork (called from Settings).
-
-        The whole window re-tints, because the glass backdrop is derived from
-        whichever tank theme is selected.
-        """
-        self.tank_background = filename
+        """Swap the tank artwork (called from Settings)."""
         self.background_widget.set_image_path(os.path.join("assets", filename))
-        self._backdrop = aero.backdrop_pixmap(os.path.join("assets", filename), self.window_width)
-        self.refresh_glass()
         print(f"🎨 Tank background set to {filename}")
 
     def load_fish_configs(self):

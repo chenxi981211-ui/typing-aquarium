@@ -8,7 +8,6 @@ from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt, QSize, QTimer
 
 from ui_components import first_frame_pixmap
-import aero
 from sound_manager import sounds
 
 
@@ -130,13 +129,11 @@ class CollectionWindow(QWidget):
             super().keyPressEvent(event)
 
 
-class FishCard(aero.LiquidPanel):
+class FishCard(QFrame):
     """Individual fish card in the collection grid"""
 
     def __init__(self, fish_data, is_owned, is_new, time_manager, parent=None):
-        super().__init__(parent, radius=16,
-                         tint=aero.PANEL_TINT if is_owned else aero.SUNK_TINT,
-                         refract=1.3, thickness=5)
+        super().__init__(parent)
         self.fish_data = fish_data
         self.is_owned = is_owned
         self.is_new = is_new
@@ -150,6 +147,22 @@ class FishCard(aero.LiquidPanel):
 
         self.setFixedSize(110, 130)
 
+        if is_owned:
+            bg_color = "rgba(30, 40, 50, 0.6)"
+            hover_color = "rgba(86, 212, 201, 0.15)"
+        else:
+            bg_color = "rgba(30, 40, 50, 0.6)"
+            hover_color = "rgba(30, 40, 50, 0.6)"
+
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_color};
+                border-radius: 12px;
+            }}
+            QFrame:hover {{
+                background-color: {hover_color};
+            }}
+        """)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(8, 8, 8, 8)
@@ -164,8 +177,8 @@ class FishCard(aero.LiquidPanel):
 
         image_container.setStyleSheet("""
             QWidget {
-                background-color: rgba(4, 26, 52, 0.35);
-                border-radius: 10px;
+                background-color: rgba(0, 0, 0, 0.3);
+                border-radius: 8px;
             }
         """)
 
@@ -648,15 +661,6 @@ class CollectionWidget(QWidget):
         owned_count = len(owned_ids)
         total_count = len(self.all_fish)
         self.discovery_label.setText(f"{owned_count}/{total_count} discovered")
-
-        # Rebuilding 30 cards costs ~100ms, which lands as a stutter right when
-        # the page-resize animation starts. Only rebuild when something the grid
-        # actually shows has changed.
-        signature = (self.current_filter, tuple(sorted(owned_ids)), tuple(sorted(viewed_ids)),
-                     tuple(sorted(self.time_manager.user_data.get("favorite_fish", []))))
-        if signature == getattr(self, "_grid_signature", None):
-            return
-        self._grid_signature = signature
 
         self.populate_grid(filtered_fish)
 

@@ -1,12 +1,8 @@
 # this is the ui_components.py file
 
-from PyQt6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QPushButton,
-                             QGraphicsOpacityEffect)
-from PyQt6.QtGui import (QPixmap, QPainter, QPainterPath, QColor, QLinearGradient, QTransform,
-                         QIcon, QPen)
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
+from PyQt6.QtGui import QPixmap, QPainter, QPainterPath, QColor, QLinearGradient, QTransform, QIcon
 from PyQt6.QtCore import Qt, QTimer, QSize
-
-import aero
 
 # Only sheets of exactly this size hold a 4x4 animation grid
 SHEET_SIZE = 1024
@@ -74,49 +70,32 @@ class RoundedBackgroundWidget(QWidget):
         painter.drawPixmap(x, y, scaled_pixmap)
 
         if self.water_overlay:
-            # Surface caustics at the top, cool depth below, light piping at the
-            # waterline - the tank reads as a pane of glass holding water.
             gradient = QLinearGradient(0, 0, 0, self.height())
-            gradient.setColorAt(0.0, QColor(255, 255, 255, 92))
-            gradient.setColorAt(0.22, QColor(190, 240, 255, 26))
-            gradient.setColorAt(0.75, QColor(0, 60, 110, 30))
-            gradient.setColorAt(1.0, QColor(120, 220, 255, 52))
+            gradient.setColorAt(0, QColor(0, 100, 150, 30))
+            gradient.setColorAt(0.5, QColor(0, 120, 160, 20))
+            gradient.setColorAt(1, QColor(0, 80, 130, 40))
             painter.fillRect(self.rect(), gradient)
-
-        painter.setClipping(False)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(QColor(4, 26, 52, 140), 1.4))
-        painter.drawPath(path)
-        painter.setPen(QPen(QColor(255, 255, 255, 190), 1.2))
-        inner = QPainterPath()
-        inner.addRoundedRect(1.2, 1.2, self.width() - 2.4, self.height() - 2.4,
-                             self.corner_radius - 1, self.corner_radius - 1)
-        painter.drawPath(inner)
 
         painter.end()
 
 
-class StatCard(QWidget, aero.LiquidMixin):
-    def __init__(self, label_text, accent=aero.AQUA, parent=None):
+class StatCard(QWidget):
+    def __init__(self, label_text, parent=None):
         super().__init__(parent)
-        self.radius = 18
-        self.tint = aero.PANEL_TINT
-        self.refract = 1.26
-        self.thickness = 6
-        self._init_glass()
+        self.setFixedSize(112, 51)
 
-        self.setFixedSize(112, 58)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(6, 8, 6, 8)
-        layout.setSpacing(1)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.value_label = QLabel("0")
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.value_label.setStyleSheet(f"""
-            color: {accent};
-            font-size: 17px;
+        self.value_label.setStyleSheet("""
+            color: #56D4C9;
+            font-size: 16px;
             font-weight: bold;
             font-family: 'Sometype Mono';
             background: transparent;
@@ -124,9 +103,9 @@ class StatCard(QWidget, aero.LiquidMixin):
 
         self.desc_label = QLabel(label_text)
         self.desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.desc_label.setStyleSheet(f"""
-            color: {aero.TEXT_DIM};
-            font-size: 9px;
+        self.desc_label.setStyleSheet("""
+            color: #7DB8C8;
+            font-size: 10px;
             font-family: 'DM Sans';
             background: transparent;
         """)
@@ -135,10 +114,12 @@ class StatCard(QWidget, aero.LiquidMixin):
         layout.addWidget(self.desc_label)
         self.setLayout(layout)
 
-    def paintEvent(self, event):
-        p = QPainter(self)
-        self.paint_glass(p)
-        p.end()
+        self.setStyleSheet("""
+            QWidget {
+                background-color: rgba(86, 212, 201, 16);
+                border-radius: 12px;
+            }
+        """)
 
     def set_value(self, value):
         if isinstance(value, int) or isinstance(value, float):
@@ -182,71 +163,52 @@ def first_frame_pixmap(sprite_path):
     return pixmap
 
 
-class TabButton(QWidget, aero.LiquidMixin):
-    """Bottom-bar tab: icon over a caption, lit by a glass pill when active.
+class TabButton(QWidget):
+    """Bottom-bar tab: an icon with a small dot marking the active page."""
 
-    The active state is a painted pill plus a bright caption. Qt stylesheets
-    have no `opacity` property, so dimming the icon that way did nothing - the
-    inactive icon is dimmed with a real opacity effect instead.
-    """
-
-    def __init__(self, icon_path, caption, on_click, parent=None):
+    def __init__(self, icon_path, tooltip, on_click, parent=None):
         super().__init__(parent)
-        self.radius = 20
-        self.tint = aero.ACTIVE_TINT
-        self.refract = 1.45
-        self.thickness = 4
-        self._init_glass()
-
-        self.active = False
-        self.setFixedSize(84, 48)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedSize(44, 40)
+        self.setStyleSheet("background: transparent;")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 5, 0, 4)
-        layout.setSpacing(1)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(3)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.icon_label = QLabel()
-        self.icon_label.setPixmap(QPixmap(icon_path).scaled(
-            22, 22, Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation))
-        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_label.setStyleSheet("background: transparent;")
-
-        self.caption = QLabel(caption)
-        self.caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        layout.addWidget(self.icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.caption, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        self._dim = QGraphicsOpacityEffect(self.icon_label)
-        self.icon_label.setGraphicsEffect(self._dim)
-
+        self.button = QPushButton()
+        self.button.setIcon(QIcon(icon_path))
+        self.button.setIconSize(QSize(22, 22))
+        self.button.setFixedSize(28, 24)
+        self.button.setToolTip(tooltip)
+        self.button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.button.setStyleSheet("background: transparent; border: none;")
+        self.button.clicked.connect(self._clicked)
         self._on_click = on_click
+
+        self.dot = QLabel()
+        self.dot.setFixedSize(4, 4)
+
+        layout.addWidget(self.button, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.dot, alignment=Qt.AlignmentFlag.AlignCenter)
+
         self.set_active(False)
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            from sound_manager import sounds
-            sounds.play("click")
-            self._on_click()
-            event.accept()
+    def _clicked(self):
+        from sound_manager import sounds
+        sounds.play("click")
+        self._on_click()
 
     def set_active(self, active):
-        self.active = active
-        self._dim.setOpacity(1.0 if active else 0.62)
-        self.caption.setStyleSheet(
-            f"color: {aero.TEXT if active else aero.TEXT_DIM};"
-            f" font-size: 9px; font-family: 'DM Sans';"
-            f" font-weight: {700 if active else 500}; background: transparent;")
-        self.invalidate_glass()
-
-    def paintEvent(self, event):
-        if self.active:
-            p = QPainter(self)
-            self.paint_glass(p)
-            p.end()
+        self.button.setStyleSheet(f"""
+            background: transparent;
+            border: none;
+            opacity: {1.0 if active else 0.6};
+        """)
+        self.dot.setStyleSheet(f"""
+            background-color: {'#56D4C9' if active else 'transparent'};
+            border-radius: 2px;
+        """)
 
 
 class SpriteSheetFish(QLabel):

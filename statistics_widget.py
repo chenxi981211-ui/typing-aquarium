@@ -4,11 +4,9 @@ from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayo
 from PyQt6.QtGui import QPainter, QColor, QPainterPath, QFont
 from PyQt6.QtCore import Qt, QRectF
 
-import aero
-
-TEAL = aero.AQUA
-PURPLE = aero.VIOLET
-GOLD = aero.AMBER
+TEAL = "#56D4C9"
+PURPLE = "#9B59B6"
+GOLD = "#F39C12"
 CHART_GREEN = QColor("#B5F06E")
 CHART_TEAL = QColor("#56D4C9")
 CARD_BG = "rgba(255, 255, 255, 0.04)"
@@ -58,7 +56,7 @@ class StatHalf(QWidget):
         self.caption_label = QLabel()
         self.caption_label.setTextFormat(Qt.TextFormat.RichText)
         self.caption_label.setText(
-            f"<span style='color: rgba(222,243,255,0.75);'>{caption} • </span>"
+            f"<span style='color: rgba(255,255,255,0.5);'>{caption} • </span>"
             f"<span style='color: #FFFFFF; font-weight: 600;'>{emphasis}</span>"
         )
         self.caption_label.setStyleSheet("""
@@ -74,13 +72,18 @@ class StatHalf(QWidget):
         self.value_label.setText(str(text))
 
 
-class SplitStatRow(aero.LiquidPanel):
-    """A glass card holding two StatHalfs separated by a vertical rule."""
+class SplitStatRow(QFrame):
+    """A rounded card holding two StatHalfs separated by a vertical rule."""
 
     def __init__(self, left, right, accent, parent=None):
-        super().__init__(parent, radius=18, tint=aero.PANEL_TINT,
-                         refract=1.28, thickness=6)
+        super().__init__(parent)
         self.setFixedHeight(58)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {CARD_BG};
+                border-radius: 14px;
+            }}
+        """)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -275,9 +278,14 @@ class StatisticsPage(QWidget):
         return label
 
     def _chart_card(self, chart, height):
-        card = aero.LiquidPanel(radius=18, tint=aero.SUNK_TINT,
-                                refract=1.24, thickness=6, gloss=False)
+        card = QFrame()
         card.setFixedHeight(height)
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {CHART_BG};
+                border-radius: 14px;
+            }}
+        """)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(14, 10, 14, 6)
         card_layout.addWidget(chart)
