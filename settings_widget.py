@@ -4,11 +4,10 @@ import os
 
 from PyQt6.QtWidgets import (QWidget, QLabel, QPushButton, QFrame, QHBoxLayout, QVBoxLayout,
                              QGridLayout, QSlider, QScrollArea, QMessageBox)
-from PyQt6.QtGui import QPainter, QColor, QPixmap, QPainterPath, QPen, QRadialGradient
-from PyQt6.QtCore import Qt, QRectF, QPointF
+from PyQt6.QtGui import QPainter, QColor, QPixmap, QPainterPath
+from PyQt6.QtCore import Qt, QRectF
 
 from sound_manager import sounds
-import aero
 
 TEAL = "#56D4C9"
 CARD_BG = "rgba(255, 255, 255, 0.04)"
@@ -22,25 +21,21 @@ BACKGROUNDS = [
 ]
 
 
-OFF_TINT = QColor(10, 46, 78, 120)
-
-
-class ToggleSwitch(aero.LiquidPanel):
-    """A glass switch: liquid track, glossy knob."""
+class ToggleSwitch(QWidget):
+    """A painted iOS-style switch."""
 
     def __init__(self, checked=False, on_toggle=None, parent=None):
-        super().__init__(parent, radius=13, tint=aero.ACTIVE_TINT if checked else OFF_TINT,
-                         refract=1.5, thickness=3)
+        super().__init__(parent)
         self.checked = checked
         self.on_toggle = on_toggle
-        self.setFixedSize(48, 26)
+        self.setFixedSize(46, 26)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setStyleSheet("background: transparent;")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.checked = not self.checked
-            self.tint = aero.ACTIVE_TINT if self.checked else OFF_TINT
-            self.invalidate_glass()
+            self.update()
             sounds.play("click")
             if self.on_toggle:
                 self.on_toggle(self.checked)
@@ -49,30 +44,34 @@ class ToggleSwitch(aero.LiquidPanel):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.paint_glass(painter)
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        track = QColor(TEAL) if self.checked else QColor(255, 255, 255, 40)
+        painter.setBrush(track)
+        painter.drawRoundedRect(QRectF(0, 0, self.width(), self.height()),
+                                self.height() / 2, self.height() / 2)
 
         knob_d = self.height() - 6
         knob_x = self.width() - knob_d - 3 if self.checked else 3
-        knob = QRectF(knob_x, 3, knob_d, knob_d)
-        kg = QRadialGradient(knob.center() - QPointF(0, knob_d * 0.3), knob_d)
-        kg.setColorAt(0.0, QColor(255, 255, 255, 255))
-        kg.setColorAt(0.55, QColor(244, 253, 255, 255))
-        kg.setColorAt(1.0, QColor(186, 222, 240, 255))
-        painter.setBrush(kg)
-        painter.setPen(QPen(QColor(6, 36, 64, 130), 1))
-        painter.drawEllipse(knob)
+        painter.setBrush(QColor("#FFFFFF") if self.checked else QColor(255, 255, 255, 190))
+        painter.drawEllipse(QRectF(knob_x, 3, knob_d, knob_d))
         painter.end()
 
 
-class SettingRow(aero.LiquidPanel):
+class SettingRow(QFrame):
     """Title + subtitle on the left, a control on the right."""
 
     def __init__(self, title, subtitle, control, parent=None):
-        super().__init__(parent, radius=16, tint=aero.PANEL_TINT,
-                         refract=1.3, thickness=5)
+        super().__init__(parent)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {CARD_BG};
+                border-radius: 12px;
+            }}
+        """)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(10)
 
         text_column = QVBoxLayout()
@@ -80,10 +79,21 @@ class SettingRow(aero.LiquidPanel):
         text_column.setContentsMargins(0, 0, 0, 0)
 
         title_label = QLabel(title)
-        title_label.setStyleSheet(aero.label_css(12, aero.TEXT, 600))
+        title_label.setStyleSheet("""
+            color: #FFFFFF;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'DM Sans';
+            background: transparent;
+        """)
 
         subtitle_label = QLabel(subtitle)
-        subtitle_label.setStyleSheet(aero.label_css(10, aero.TEXT_DIM, 500))
+        subtitle_label.setStyleSheet("""
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 10px;
+            font-family: 'DM Sans';
+            background: transparent;
+        """)
 
         text_column.addWidget(title_label)
         text_column.addWidget(subtitle_label)
@@ -92,15 +102,14 @@ class SettingRow(aero.LiquidPanel):
         layout.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
 
 
-class BackgroundCard(aero.LiquidPanel):
+class BackgroundCard(QFrame):
     """A selectable tank background thumbnail."""
 
     THUMB_W = 150
     THUMB_H = 78
 
     def __init__(self, filename, display_name, on_select, parent=None):
-        super().__init__(parent, radius=18, tint=aero.PANEL_TINT,
-                         refract=1.28, thickness=6)
+        super().__init__(parent)
         self.filename = filename
         self.display_name = display_name
         self.on_select = on_select
@@ -152,10 +161,21 @@ class BackgroundCard(aero.LiquidPanel):
 
     def set_selected(self, selected):
         self.selected = selected
-        self.tint = aero.ACTIVE_TINT if selected else aero.PANEL_TINT
-        self.invalidate_glass()
-        self.name_label.setStyleSheet(
-            aero.label_css(11, aero.TEXT, 700 if selected else 500))
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {'rgba(86, 212, 201, 0.10)' if selected else CARD_BG};
+                border: {'1px solid ' + TEAL if selected else '1px solid transparent'};
+                border-radius: 12px;
+            }}
+        """)
+        self.name_label.setStyleSheet(f"""
+            color: {TEAL if selected else '#FFFFFF'};
+            font-size: 11px;
+            font-weight: {'600' if selected else '500'};
+            font-family: 'DM Sans';
+            background: transparent;
+            border: none;
+        """)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -208,7 +228,13 @@ class SettingsPage(QWidget):
             self.back_btn.clicked.connect(on_back)
 
         title = QLabel("Settings")
-        title.setStyleSheet(aero.label_css(17, aero.AQUA, 700))
+        title.setStyleSheet(f"""
+            color: {TEAL};
+            font-size: 17px;
+            font-weight: bold;
+            font-family: 'DM Sans';
+            background: transparent;
+        """)
 
         header_layout.addWidget(self.back_btn)
         header_layout.addWidget(title)
@@ -279,7 +305,13 @@ class SettingsPage(QWidget):
     def _section_label(self, text):
         label = QLabel(text)
         label.setContentsMargins(0, 8, 0, 0)
-        label.setStyleSheet(aero.label_css(13, aero.TEXT, 700))
+        label.setStyleSheet("""
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'DM Sans';
+            background: transparent;
+        """)
         return label
 
     def _toggle_row(self, title, subtitle, setting_key):
@@ -289,16 +321,27 @@ class SettingsPage(QWidget):
         return SettingRow(title, subtitle, toggle)
 
     def _volume_row(self):
-        card = aero.LiquidPanel(radius=16, tint=aero.PANEL_TINT, refract=1.3, thickness=5)
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {CARD_BG};
+                border-radius: 12px;
+            }}
+        """)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(8)
 
         top = QHBoxLayout()
         label = QLabel("Master Volume")
-        label.setStyleSheet(aero.label_css(12, aero.TEXT, 600))
+        label.setStyleSheet("""
+            color: #FFFFFF; font-size: 12px; font-weight: 600;
+            font-family: 'DM Sans'; background: transparent;
+        """)
         self.volume_value = QLabel(f"{int(self.time_manager.get_setting('master_volume'))}%")
-        self.volume_value.setStyleSheet(aero.label_css(12, aero.AQUA, 700))
+        self.volume_value.setStyleSheet(f"""
+            color: {TEAL}; font-size: 12px; font-family: 'DM Sans'; background: transparent;
+        """)
         top.addWidget(label)
         top.addStretch()
         top.addWidget(self.volume_value)
@@ -308,13 +351,10 @@ class SettingsPage(QWidget):
         slider.setValue(int(self.time_manager.get_setting("master_volume")))
         slider.setStyleSheet(f"""
             QSlider::groove:horizontal {{
-                height: 5px; background: rgba(4, 30, 58, 0.55); border-radius: 3px;
+                height: 4px; background: rgba(255, 255, 255, 0.15); border-radius: 2px;
             }}
             QSlider::sub-page:horizontal {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(214,255,255,245), stop:0.45 rgba(120,228,244,235),
-                    stop:1 rgba(52,168,214,240));
-                border-radius: 3px;
+                background: {TEAL}; border-radius: 2px;
             }}
             QSlider::handle:horizontal {{
                 background: #FFFFFF; width: 16px; height: 16px;
