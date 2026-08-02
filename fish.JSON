@@ -1,0 +1,632 @@
+[
+  {
+    "id": "guppy",
+    "name": "Guppy",
+    "scientific_name": "Poecilia Reticulata",
+    "rarity": 100,
+    "max_owned": 99,
+    "unlock": {
+      "type": "random",
+      "value": 0,
+      "label_reason": "Joined your aquarium completely at random to keep you company!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "guppy_swim.gif",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "The ultimate optimist. Common, cheerful, and always ready to party. Guppies are so adaptable they’ve been used in space experiments to see how they handle microgravity—they’re basically tiny astronauts."
+    }
+  },
+  {
+    "id": "sardine",
+    "name": "Sardine",
+    "scientific_name": "Sardina Pilchardus",
+    "rarity": 100,
+    "max_owned": 99,
+    "unlock": {
+      "type": "focus",
+      "value": 45,
+      "label_reason": "This steady friend joined because of your incredible endurance!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "sardine_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "A total team player. They are naturally gentle and feel uncomfortable being alone; they literally move as one giant, shimmering super-organism. A single school of sardines can contain millions of fish, all turning in perfect synchronization without ever bumping into each other."
+    }
+  },
+  {
+    "id": "squirrelfish",
+    "name": "Squirrelfish",
+    "scientific_name": "Holocentrus Adscensionis",
+    "rarity": 90,
+    "max_owned": 99,
+    "unlock": {
+      "type": "burst",
+      "value": 2,
+      "label_reason": "Caught in the wave of a magical flow state!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "squirrelfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "A bit of a nocturnal explorer. They have massive, sassy eyes for spotting snacks in the dark. They actually make grunting and clicking sounds to communicate—it’s like they’re gossiping about what you’re typing!"
+    }
+  },
+  {
+    "id": "betta_fish",
+    "name": "Betta Fish",
+    "scientific_name": "Betta Splendens",
+    "rarity": 80,
+    "max_owned": 99,
+    "unlock": {
+      "type": "day_night",
+      "value": "day",
+      "label_reason": "This sun-loving friend joined because you tackled your tasks bright and early under the warm light!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "betta_fish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "The definition of bold. They have a \"my way or the highway\" attitude. They are labyrinth fish, meaning they have a special organ that lets them breathe air from the surface—they’re the only fish that could theoretically survive a short trip outside the water."
+    }
+  },
+  {
+    "id": "royal_gramma",
+    "name": "Royal Gramma",
+    "scientific_name": "Gramma Loreto",
+    "rarity": 70,
+    "max_owned": 99,
+    "unlock": {
+      "type": "typing_speed",
+      "value": 80,
+      "label_reason": "This speedy swimmer was impressed by your lighting fast typing speed and couldn’t resist to ride along!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "royal_gramma_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "A fancy dresser with a shy streak. They are famous for their vibrant purple-to-yellow gradient, but they often swim upside down under rock ledges to feel safe. They literally live life on the ceiling."
+    }
+  },
+  {
+    "id": "coral_grouper",
+    "name": "Coral Grouper",
+    "scientific_name": "Plectropomus",
+    "rarity": 70,
+    "max_owned": 99,
+    "unlock": {
+      "type": "streak",
+      "value": 3,
+      "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "coral_grouper_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "A sturdy adamant character. They love to sit perfectly still, watching the tank like a boss. They are master ambush predators; they can stay motionless for hours before lunging at lightning speeds to grab a snack."
+    }
+  },
+  {
+    "id": "parrotfish",
+    "name": "Parrotfish",
+    "scientific_name": "Scaridae",
+    "rarity": 70,
+    "max_owned": 99,
+    "unlock": {
+      "type": "day_night",
+      "value": "night",
+      "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "parrotfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "The tank’s hardworking janitor. They have beaks fused from teeth, which they use to scrape algae off coral. At night, they secrete a bubble of mucus around themselves like a sleeping bag to hide their scent from predators."
+    }
+  },
+  {
+    "id": "long_finned_zebra_dania",
+    "name": "Long Finned Zebra Danio",
+    "scientific_name": "Danio Rerio",
+    "rarity": 70,
+    "max_owned": 99,
+    "unlock": {
+      "type": "typing_speed",
+      "value": 60,
+      "label_reason": "This speedy swimmer was impressed by your lighting fast typing speed and couldn’t resist to ride along!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "long_finned_zebra_dania_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "Pure speedy energy. Because their heart and vascular systems develop very similarly to ours, they are the \"lab rats\" of the fish world, helping scientists study human heart disease."
+    }
+  },
+  {
+    "id": "ribboned_sweetlips",
+    "name": "Ribboned Sweetlips",
+    "scientific_name": "Plectorhinchus Polytaenia",
+    "rarity": 70,
+    "max_owned": 99,
+    "unlock": {
+      "type": "char_count",
+      "value": 2000,
+      "label_reason": "Joined because you were a Keyboard Warrior!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "ribboned_sweetlips_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "A bit dramatic with their elegant, flowing wiggle. When they are young, they look nothing like adults—they have completely different colors and swim with a crazy, exaggerated \"dance\" to mimic poisonous flatworms."
+    }
+  },
+  {
+    "id": "tuna",
+    "name": "Tuna",
+    "scientific_name": "Thunnus",
+    "rarity": 60,
+    "max_owned": 99,
+    "unlock": {
+      "type": "focus",
+      "value": 45,
+      "label_reason": "This steady friend joined because of your incredible endurance!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "tuna_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "The relentless endurance athlete. Tuna are one of the few fish that are warm-blooded, which allows them to hunt in icy deep waters that would freeze a normal fish solid."
+    }
+  },
+  {
+    "id": "dwarf_gouramis",
+    "name": "Dwarf Gouramis",
+    "scientific_name": "Trichogaster Lalius",
+    "rarity": 60,
+    "max_owned": 99,
+    "unlock": {
+      "type": "streak",
+      "value": 5,
+      "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "dwarf_gouramis_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "Calm and collected. They are \"bubble nesters\"—the males spend their time blowing bubbles at the surface to create a foamy fortress for their future fry."
+    }
+  },
+  {
+    "id": "clownfish",
+    "name": "Clownfish",
+    "scientific_name": "Amphiprion Ocellaris",
+    "rarity": 60,
+    "max_owned": 5,
+    "unlock": {
+      "type": "random",
+      "value": 0,
+      "label_reason": "Joined your aquarium completely at random to keep you company!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "clownfish_swim.gif",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "The classic sassy jester. They have a symbiotic relationship with anemones, using their mucus layer to stay immune to the anemone's toxic sting. It’s like living in a house made of poison!"
+    }
+  },
+  {
+    "id": "blue_hippo_tang",
+    "name": "Blue Hippo Tang",
+    "scientific_name": "Paracanthurus Hepatus",
+    "rarity": 60,
+    "max_owned": 99,
+    "unlock": {
+      "type": "char_count",
+      "value": 5000,
+      "label_reason": "Joined because you were a Keyboard Warrior!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "blue_hippo_tang_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "A cheerful socialite. They have a sharp, retractable spine near their tail that acts like a hidden switchblade—don't let the bubbly personality fool you!"
+    }
+  },
+  {
+    "id": "green_bird_wrasse",
+    "name": "Green Bird Wrasse",
+    "scientific_name": "Gomphosus Caeruleus",
+    "rarity": 50,
+    "max_owned": 99,
+    "unlock": {
+      "type": "random",
+      "value": 0,
+      "label_reason": "Joined your aquarium completely at random to keep you company!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "green_bird_wrasse_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "Uniquely sassy with a beak to match. They are incredibly capable jumpers—if the tank lid isn't on tight, they might just decide to explore the living room!"
+    }
+  },
+  {
+    "id": "florida_flag_fish",
+    "name": "Florida Flag Fish",
+    "scientific_name": "Jordanella Floridae",
+    "rarity": 50,
+    "max_owned": 99,
+    "unlock": {
+      "type": "char_count",
+      "value": 2000,
+      "label_reason": "Joined because you were a Keyboard Warrior!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "florida_flag_fish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Common",
+      "description": "The neighborhood bold grump. They are one of the best algae eaters in the world, and their name comes from their distinct, flag-like pattern that looks like the Stars and Stripes."
+    }
+  },
+  {
+    "id": "pictus_catfish",
+    "name": "Pictus Catfish",
+    "scientific_name": "Pimelodus Pictus",
+    "rarity": 40,
+    "max_owned": 2,
+    "unlock": {
+      "type": "burst",
+      "value": 2,
+      "label_reason": "Caught in the wave of a magical flow state!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "pictus_catfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "The curious vacuum. Those long whiskers (barbels) aren't just for show—they are covered in taste buds. They basically \"taste\" their way across the tank floor."
+    }
+  },
+  {
+    "id": "picasso_triggerfish",
+    "name": "Picasso Triggerfish",
+    "scientific_name": "Rhinecanthus Aculeatus",
+    "rarity": 30,
+    "max_owned": 2,
+    "unlock": {
+      "type": "char_count",
+      "value": 5000,
+      "label_reason": "Joined because you were a Keyboard Warrior!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "picasso_triggerfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "A work of art with a mischievous attitude. They have a locking mechanism on their first dorsal spine that allows them to wedge themselves into holes so tightly that not even a shark can pull them out."
+    }
+  },
+  {
+    "id": "longnose_butterfly_fish",
+    "name": "Longnose Butterfly Fish",
+    "scientific_name": "Forcipiger Flavissimus",
+    "rarity": 25,
+    "max_owned": 5,
+    "unlock": {
+      "type": "typing_speed",
+      "value": 80,
+      "label_reason": "This speedy swimmer was impressed by your lighting fast typing speed and couldn’t resist to ride along!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "longnose_butterfly_fish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "Refined and gentle food critics. Their long, tweezer-like snouts are specifically evolved to pick tiny polyps out of deep, narrow crevices in the coral that no other fish can reach."
+    }
+  },
+  {
+    "id": "cherry_shrimp",
+    "name": "Cherry Shrimp",
+    "scientific_name": "Neocaridina Davidi",
+    "rarity": 25,
+    "max_owned": 1,
+    "unlock": {
+      "type": "random",
+      "value": 0,
+      "label_reason": "Joined your aquarium completely at random to keep you company!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "cherry_shrimp_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "Tiny but determined. They start life almost transparent and only turn that vibrant, festive cherry-red as they get older—your tiny cleaning crew is essentially aging like a fine wine."
+    }
+  },
+  {
+    "id": "opah",
+    "name": "Opah",
+    "scientific_name": "Lampris Guttatus",
+    "rarity": 20,
+    "max_owned": 5,
+    "unlock": {
+      "type": "streak",
+      "value": 5,
+      "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "opah_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "A unique gentle giant. They are the only known fish that can keep their entire body—including their brain and heart—warmer than the surrounding water, giving them a huge competitive edge in the deep sea."
+    }
+  },
+  {
+    "id": "pufferfish",
+    "name": "Pufferfish",
+    "scientific_name": "Tetraodontidae",
+    "rarity": 20,
+    "max_owned": 3,
+    "unlock": {
+      "type": "focus",
+      "value": 60,
+      "label_reason": "This steady friend joined because of your incredible endurance!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "pufferfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "Normally goofy, but a master of defense. When they puff up, they aren't just getting bigger; they also contain a toxin called tetrodotoxin, which is 1,200 times more poisonous than cyanide."
+    }
+  },
+  {
+    "id": "seahorse",
+    "name": "Seahorse",
+    "scientific_name": "Hippocampus",
+    "rarity": 10,
+    "max_owned": 1,
+    "unlock": {
+      "type": "day_night",
+      "value": "day",
+      "label_reason": "This sun-loving friend joined because you tackled your tasks bright and early under the warm light!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "seahorse_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "The gentle, slow-mo specialist. In the seahorse world, the males are the ones who get \"pregnant,\" carrying the eggs in a specialized pouch until they hatch. They are the ultimate stay-at-home dads."
+    }
+  },
+  {
+    "id": "antennata_lionfish",
+    "name": "Antennata Lionfish",
+    "scientific_name": "Pterois Antennata",
+    "rarity": 10,
+    "max_owned": 1,
+    "unlock": {
+      "type": "day_night",
+      "value": "night",
+      "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "antennata_lionfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "The mysterious diva. Those beautiful, sweeping fins are actually venomous hypodermic needles. They use their stunning looks to lure prey in before striking."
+    }
+  },
+  {
+    "id": "moorish_idol",
+    "name": "Moorish Idol",
+    "scientific_name": "Zanclus Cornutus",
+    "rarity": 10,
+    "max_owned": 1,
+    "unlock": {
+      "type": "char_count",
+      "value": 10000,
+      "label_reason": "Joined because you were a Keyboard Warrior!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "moorish_idol_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Rare",
+      "description": "The graceful beauty queen. These are famously \"impossible\" to keep in home aquariums because they are extremely picky eaters and get stressed easily—if you have one, you’re a master caretaker."
+    }
+  },
+  {
+    "id": "coelacanth",
+    "name": "Coelacanth",
+    "scientific_name": "Latimeria Chalumnae",
+    "rarity": 5,
+    "max_owned": 1,
+    "unlock": {
+      "type": "focus",
+      "value": 60,
+      "label_reason": "This steady friend joined because of your incredible endurance!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "coelacanth_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Legendary",
+      "description": "A stoic living fossil. They were thought to have gone extinct with the dinosaurs 66 million years ago until one was caught by a fisherman in 1938. They are the definition of \"I’m not dead yet!\""
+    }
+  },
+  {
+    "id": "mega_mouth_shark",
+    "name": "Mega Mouth Shark",
+    "scientific_name": "Megachasma Pelagios",
+    "rarity": 5,
+    "max_owned": 1,
+    "unlock": {
+      "type": "day_night",
+      "value": "night",
+      "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "mega_mouth_shark_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Legendary",
+      "description": "A mellow, deep-sea hipster. Since their discovery in 1976, fewer than 300 have ever been seen by humans. They are the \"Bigfoot\" of the ocean."
+    }
+  },
+  {
+    "id": "swordfish",
+    "name": "Swordfish",
+    "scientific_name": "Xiphias Gladius",
+    "rarity": 5,
+    "max_owned": 2,
+    "unlock": {
+      "type": "burst",
+      "value": 5,
+      "label_reason": "Caught in the wave of a magical flow state!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "swordfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Legendary",
+      "description": "A high-speed, adamant hunter. Their \"sword\" isn't for stabbing; they use it to slash through schools of fish, stunning them so they can pick them off one by one."
+    }
+  },
+  {
+    "id": "peppermint_angelfish",
+    "name": "Peppermint Angelfish",
+    "scientific_name": "Centropyge Boylei",
+    "rarity": 5,
+    "max_owned": 1,
+    "unlock": {
+      "type": "char_count",
+      "value": 10000,
+      "label_reason": "Joined because you were a Keyboard Warrior!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "peppermint_angelfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Legendary",
+      "description": "The exclusive rare gem. These deep-water beauties are so rare and live at such extreme depths that they are almost never seen by anyone except specialized scientific submersibles."
+    }
+  },
+  {
+    "id": "devil_pupfish",
+    "name": "Devil Pupfish",
+    "scientific_name": "Cyprinodon Diabolis",
+    "rarity": 1,
+    "max_owned": 1,
+    "unlock": {
+      "type": "streak",
+      "value": 5,
+      "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "devil_pupfish_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Legendary",
+      "description": "The tough survivor. They live in a single cavern called Devils Hole, Nevada, and have been cut off from the rest of the world for 10,000 years. They are quite literally the loneliest fish on Earth."
+    }
+  },
+  {
+    "id": "lost_shark",
+    "name": "Lost Shark",
+    "scientific_name": "Carcharhinus Obsoletus",
+    "rarity": 1,
+    "max_owned": 1,
+    "unlock": {
+      "type": "random",
+      "value": 0,
+      "label_reason": "Joined your aquarium completely at random to keep you company!"
+    },
+    "animation": {
+      "idle": "",
+      "swim": "lost_shark_swim.png",
+      "fast_swim": ""
+    },
+    "display": {
+      "tier_label": "Legendary",
+      "description": "A true reclusive mystery. This refers to deep-sea species that vanish for decades at a time. Scientists classify them as \"lost\" when they stop showing up in data entirely, only to occasionally reappear in the deep dark."
+    }
+  }
+]

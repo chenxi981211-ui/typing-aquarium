@@ -1,0 +1,6 @@
+logs/
+__pycache__/
+*.pyc
+.DS_Store
+_bg_blur.png
+_bg_sharp.png
