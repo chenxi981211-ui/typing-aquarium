@@ -4,7 +4,3 @@ __pycache__/
 .DS_Store
 _bg_blur.png
 _bg_sharp.png
-
-# user progress - written by the app constantly, must not be version controlled
-save.json
-save copy.json
