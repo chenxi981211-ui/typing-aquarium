@@ -299,13 +299,16 @@ class AquariumWidget(QWidget):
         self.tab_bar = aero.LiquidPanel(radius=24, tint=aero.BAR_TINT,
                                         refract=1.22, thickness=7)
         bottom_layout = QHBoxLayout(self.tab_bar)
-        bottom_layout.setSpacing(4)
+        bottom_layout.setSpacing(26)
         bottom_layout.setContentsMargins(4, 3, 4, 3)
         bottom_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.chest_btn = TabButton("🐚", "Collection", self.show_collection)
-        self.tank_btn = TabButton("🐠", "Aquarium", self.show_aquarium)
-        self.stats_btn = TabButton("📊", "Statistics", self.show_statistics)
+        self.chest_btn = TabButton("assets/Inventory outline.svg", "assets/Inventory filled.svg",
+                                   "Collection", self.show_collection)
+        self.tank_btn = TabButton("assets/Tank outline.svg", "assets/Tank filled.svg",
+                                  "Aquarium", self.show_aquarium)
+        self.stats_btn = TabButton("assets/Stats outline.svg", "assets/Stats filled.svg",
+                                   "Statistics", self.show_statistics)
 
         bottom_layout.addWidget(self.chest_btn)
         bottom_layout.addWidget(self.tank_btn)

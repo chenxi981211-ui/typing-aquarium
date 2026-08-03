@@ -50,7 +50,7 @@ class StatHalf(QWidget):
         self.value_label.setStyleSheet(f"""
             color: {accent};
             font-size: 21px;
-            font-weight: bold;
+            font-weight: 500;
             font-family: {aero.NUMERIC_FONT};
             background: transparent;
         """)

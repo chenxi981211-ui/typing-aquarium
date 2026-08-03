@@ -26,8 +26,9 @@ AMBER = "#FFD696"
 TEXT = "#FFFFFF"
 TEXT_DIM = "rgba(235, 249, 255, 240)"
 
-# Numerals get a typewriter face; the rest of the UI stays humanist.
-NUMERIC_FONT = "'American Typewriter', 'Courier New', monospace"
+# Numerals get a clean humanist monospace - PT Mono is the closest face macOS
+# ships to Sometype Mono, which the design calls for but isn't installed.
+NUMERIC_FONT = "'PT Mono', 'Andale Mono', 'Courier New', monospace"
 
 # ===== effect strength =====
 # Turned down from the first pass: the gloss was washing out the top of every
@@ -48,7 +49,7 @@ PANEL_TINT = QColor(22, 92, 148, 96)
 BAR_TINT = QColor(20, 86, 142, 104)
 ACTIVE_TINT = QColor(96, 216, 232, 120)
 SUNK_TINT = QColor(8, 44, 82, 104)
-TAB_ACTIVE_TINT = QColor(126, 226, 240, 72)   # deliberately gentle
+TAB_ACTIVE_TINT = QColor(86, 212, 201, 175)   # the design's teal orb
 
 # The backdrop is built once at this height and anchored to the top, so the
 # window can animate between page heights without re-blurring every frame.
@@ -76,6 +77,40 @@ def rounded(rect, radius):
     path = QPainterPath()
     path.addRoundedRect(rect, radius, radius)
     return path
+
+
+_svg_cache = {}
+
+
+def svg_pixmap(path, size, colour=None, scale=2):
+    """Render an SVG to a pixmap, optionally recoloured.
+
+    Rendered at `scale` and tagged with a device pixel ratio so it stays crisp,
+    and recoloured via SourceIn so one icon file can serve several states.
+    """
+    key = (path, size, colour.name() if colour else None, scale)
+    if key in _svg_cache:
+        return _svg_cache[key]
+
+    from PyQt6.QtSvg import QSvgRenderer
+
+    pixmap = QPixmap(size * scale, size * scale)
+    pixmap.fill(Qt.GlobalColor.transparent)
+
+    if os.path.exists(path):
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        QSvgRenderer(path).render(painter)
+        if colour is not None:
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+            painter.fillRect(pixmap.rect(), colour)
+        painter.end()
+    else:
+        print(f"⚠️ Icon not found: {path}")
+
+    pixmap.setDevicePixelRatio(scale)
+    _svg_cache[key] = pixmap
+    return pixmap
 
 
 def backdrop_pixmap(image_path, width, height=BACKDROP_HEIGHT, blur=30, dim=0.42):

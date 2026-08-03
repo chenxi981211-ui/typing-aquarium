@@ -287,20 +287,21 @@ class FishCard(aero.LiquidPanel):
             rarity_color = aero.AMBER
             rarity_rgb = "255, 214, 150"
 
-        # A tinted pill in the rarity's own colour, rather than a black slab -
-        # the heavy dark box fought with the glass cards.
+        # A fully rounded pill in the rarity's own colour, rather than a black
+        # slab - the heavy dark box fought with the glass cards.
         rarity_container = QFrame()
+        rarity_container.setFixedHeight(18)
         rarity_container.setStyleSheet(f"""
             QFrame {{
-                background-color: rgba({rarity_rgb}, 0.16);
-                border: 1px solid rgba({rarity_rgb}, 0.42);
+                background-color: rgba({rarity_rgb}, 0.20);
+                border: 1px solid rgba({rarity_rgb}, 0.38);
                 border-radius: 9px;
             }}
         """)
         rarity_container.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
 
         rarity_layout = QHBoxLayout(rarity_container)
-        rarity_layout.setContentsMargins(7, 1, 7, 1)
+        rarity_layout.setContentsMargins(9, 0, 9, 0)
         rarity_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         rarity_label = QLabel(rarity_text)

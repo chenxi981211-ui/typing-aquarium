@@ -3,7 +3,7 @@
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
 from PyQt6.QtGui import (QPixmap, QPainter, QPainterPath, QColor, QLinearGradient, QTransform,
                          QIcon, QPen, QFont)
-from PyQt6.QtCore import Qt, QTimer, QSize, QRect
+from PyQt6.QtCore import Qt, QTimer, QSize, QRect, QRectF
 
 import aero
 
@@ -116,7 +116,7 @@ class StatCard(QWidget, aero.LiquidMixin):
         self.value_label.setStyleSheet(f"""
             color: {accent};
             font-size: 18px;
-            font-weight: bold;
+            font-weight: 500;
             font-family: {aero.NUMERIC_FONT};
             background: transparent;
         """)
@@ -182,51 +182,36 @@ def first_frame_pixmap(sprite_path):
 
 
 class TabButton(QWidget, aero.LiquidMixin):
-    """Bottom-bar tab: emoji over a caption, lifted by a glass pill when active.
+    """Bottom-bar tab: an SVG icon, lit by a glass orb when active.
 
-    Qt stylesheets have no `opacity` property, and a child carrying a
-    QGraphicsOpacityEffect gets composited before its parent's paintEvent - so
-    the active pill painted over it. The emoji is pre-rendered to pixmaps at
-    two opacities instead, which sidesteps both problems.
+    Everything is drawn in paintEvent - orb, icon and dot. Child widgets are a
+    liability here: one carrying a QGraphicsOpacityEffect gets composited
+    before its parent paints, which previously made the active icon vanish
+    behind its own highlight.
     """
 
-    def __init__(self, emoji, caption, on_click, parent=None):
+    ICON = 21
+    ORB = 34
+
+    def __init__(self, outline_svg, filled_svg, tooltip, on_click, parent=None):
         super().__init__(parent)
-        self.radius = 18
         self.tint = aero.TAB_ACTIVE_TINT
-        self.refract = 1.2
-        self.thickness = 5
-        self.piping = False   # the pill is a soft lift, not a lit capsule
+        self.refract = 1.35
+        self.thickness = 4
+        self.piping = False
         self._init_glass()
 
         self.active = False
-        self.setFixedSize(84, 46)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 4, 0, 3)
-        layout.setSpacing(0)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # The emoji is pre-rendered to pixmaps at two opacities rather than
-        # dimmed with a QGraphicsOpacityEffect. A child carrying an effect is
-        # composited before the parent's paintEvent, so the active tab's glass
-        # painted straight over it and the emoji vanished.
-        self._icon_on = self._emoji_pixmap(emoji, 26, 1.0)
-        self._icon_off = self._emoji_pixmap(emoji, 26, 0.55)
-
-        self.icon_label = QLabel()
-        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_label.setStyleSheet("background: transparent;")
-
-        self.caption = QLabel(caption)
-        self.caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        layout.addWidget(self.icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.caption, alignment=Qt.AlignmentFlag.AlignCenter)
-
         self._on_click = on_click
-        self.set_active(False)
+        self.setFixedSize(56, 50)
+        self.setToolTip(tooltip)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        # Outline when resting, filled when selected - the shape itself carries
+        # the state, not just the colour behind it.
+        self._icon_off = aero.svg_pixmap(outline_svg, self.ICON, QColor(226, 243, 251))
+        self._icon_on = aero.svg_pixmap(filled_svg, self.ICON, QColor(255, 255, 255))
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -235,34 +220,57 @@ class TabButton(QWidget, aero.LiquidMixin):
             self._on_click()
             event.accept()
 
-    @staticmethod
-    def _emoji_pixmap(emoji, size, opacity):
-        pm = QPixmap(size, size)
-        pm.fill(Qt.GlobalColor.transparent)
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.setOpacity(opacity)
-        font = QFont()
-        font.setPixelSize(int(size * 0.76))
-        p.setFont(font)
-        p.drawText(QRect(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, emoji)
-        p.end()
-        return pm
-
     def set_active(self, active):
         self.active = active
-        self.icon_label.setPixmap(self._icon_on if active else self._icon_off)
-        self.caption.setStyleSheet(
-            f"color: {aero.TEXT if active else 'rgba(214, 236, 248, 170)'};"
-            f" font-size: 9px; font-family: 'DM Sans';"
-            f" font-weight: {600 if active else 500}; background: transparent;")
         self.invalidate_glass()
+        self.update()
+
+    def _orb_rect(self):
+        return QRectF((self.width() - self.ORB) / 2, 2, self.ORB, self.ORB)
+
+    def paint_glass(self, painter):
+        """Only the orb is glass, not the whole widget, so cache just that."""
+        backdrop = self._backdrop()
+        origin = self._origin()
+        key = (self.width(), self.height(), origin.x(), origin.y(),
+               id(backdrop), self.tint.rgba(), aero.fast_mode())
+
+        if self._glass_key != key or self._glass_cache is None:
+            cache = QPixmap(self.size())
+            cache.fill(Qt.GlobalColor.transparent)
+            cp = QPainter(cache)
+            orb = self._orb_rect()
+            aero.paint_liquid(cp, orb, orb.height() / 2, backdrop, origin,
+                              self.tint, self.refract, True, False, self.thickness,
+                              aero.PANEL_BACKDROP_OPACITY)
+            cp.end()
+            self._glass_cache = cache
+            self._glass_key = key
+
+        painter.drawPixmap(0, 0, self._glass_cache)
 
     def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
         if self.active:
-            p = QPainter(self)
             self.paint_glass(p)
-            p.end()
+
+        icon = self._icon_on if self.active else self._icon_off
+        orb = self._orb_rect()
+        p.setOpacity(1.0 if self.active else 0.68)
+        p.drawPixmap(int(orb.center().x() - self.ICON / 2),
+                     int(orb.center().y() - self.ICON / 2), icon)
+        p.setOpacity(1.0)
+
+        if self.active:
+            dot = QRectF(self.width() / 2 - 2.5, orb.bottom() + 5, 5, 5)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(126, 232, 244))
+            p.drawEllipse(dot)
+
+        p.end()
 
 
 class SpriteSheetFish(QLabel):
