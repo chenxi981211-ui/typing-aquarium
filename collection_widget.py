@@ -152,26 +152,23 @@ class FishCard(aero.LiquidPanel):
 
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(6)
+        layout.setContentsMargins(6, 6, 6, 8)
+        layout.setSpacing(4)
 
         # Image container
         image_container = QWidget()
-        image_container.setFixedSize(64, 64)
+        image_container.setFixedSize(72, 72)
         image_layout = QVBoxLayout(image_container)
         image_layout.setContentsMargins(0, 0, 0, 0)
         image_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        image_container.setStyleSheet("""
-            QWidget {
-                background-color: rgba(4, 26, 52, 0.35);
-                border-radius: 10px;
-            }
-        """)
+        # No panel behind the fish - it floats on the card's own glass, which
+        # reads cleaner and lets the sprite fill more of the card.
+        image_container.setStyleSheet("background: transparent;")
 
         # Fish image
         self.image_label = QLabel()
-        self.image_label.setFixedSize(64, 64)
+        self.image_label.setFixedSize(72, 72)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setScaledContents(True)
 
@@ -183,7 +180,7 @@ class FishCard(aero.LiquidPanel):
                 sprite_path = f"assets/{fish_data['id']}_swim.png"
                 if os.path.exists(sprite_path):
                     pixmap = first_frame_pixmap(sprite_path).scaled(
-                        64, 64, Qt.AspectRatioMode.KeepAspectRatio,
+                        72, 72, Qt.AspectRatioMode.KeepAspectRatio,
                         Qt.TransformationMode.SmoothTransformation
                     )
                 else:
@@ -279,26 +276,31 @@ class FishCard(aero.LiquidPanel):
         rarity = fish_data.get("rarity", 50)
         if rarity >= 50:
             rarity_text = "COMMON"
-            rarity_color = "#56D4C9"
+            rarity_color = aero.AQUA
+            rarity_rgb = "138, 240, 250"
         elif rarity >= 10:
             rarity_text = "RARE"
-            rarity_color = "#9B59B6"
+            rarity_color = aero.VIOLET
+            rarity_rgb = "198, 176, 255"
         else:
             rarity_text = "LEGENDARY"
-            rarity_color = "#F39C12"
+            rarity_color = aero.AMBER
+            rarity_rgb = "255, 214, 150"
 
+        # A tinted pill in the rarity's own colour, rather than a black slab -
+        # the heavy dark box fought with the glass cards.
         rarity_container = QFrame()
         rarity_container.setStyleSheet(f"""
             QFrame {{
-                background-color: rgba(0, 0, 0, 0.5);
-                border-radius: 12px;
-                padding: 2px 8px;
+                background-color: rgba({rarity_rgb}, 0.16);
+                border: 1px solid rgba({rarity_rgb}, 0.42);
+                border-radius: 9px;
             }}
         """)
         rarity_container.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
 
         rarity_layout = QHBoxLayout(rarity_container)
-        rarity_layout.setContentsMargins(4, 2, 4, 2)
+        rarity_layout.setContentsMargins(7, 1, 7, 1)
         rarity_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         rarity_label = QLabel(rarity_text)

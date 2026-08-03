@@ -1,10 +1,9 @@
 # this is the ui_components.py file
 
-from PyQt6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QPushButton,
-                             QGraphicsOpacityEffect)
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
 from PyQt6.QtGui import (QPixmap, QPainter, QPainterPath, QColor, QLinearGradient, QTransform,
-                         QIcon, QPen)
-from PyQt6.QtCore import Qt, QTimer, QSize
+                         QIcon, QPen, QFont)
+from PyQt6.QtCore import Qt, QTimer, QSize, QRect
 
 import aero
 
@@ -116,9 +115,9 @@ class StatCard(QWidget, aero.LiquidMixin):
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setStyleSheet(f"""
             color: {accent};
-            font-size: 17px;
+            font-size: 18px;
             font-weight: bold;
-            font-family: 'Sometype Mono';
+            font-family: {aero.NUMERIC_FONT};
             background: transparent;
         """)
 
@@ -183,34 +182,40 @@ def first_frame_pixmap(sprite_path):
 
 
 class TabButton(QWidget, aero.LiquidMixin):
-    """Bottom-bar tab: icon over a caption, lit by a glass pill when active.
+    """Bottom-bar tab: emoji over a caption, lifted by a glass pill when active.
 
-    The active state is a painted pill plus a bright caption. Qt stylesheets
-    have no `opacity` property, so dimming the icon that way did nothing - the
-    inactive icon is dimmed with a real opacity effect instead.
+    Qt stylesheets have no `opacity` property, and a child carrying a
+    QGraphicsOpacityEffect gets composited before its parent's paintEvent - so
+    the active pill painted over it. The emoji is pre-rendered to pixmaps at
+    two opacities instead, which sidesteps both problems.
     """
 
-    def __init__(self, icon_path, caption, on_click, parent=None):
+    def __init__(self, emoji, caption, on_click, parent=None):
         super().__init__(parent)
-        self.radius = 20
-        self.tint = aero.ACTIVE_TINT
-        self.refract = 1.45
-        self.thickness = 4
+        self.radius = 18
+        self.tint = aero.TAB_ACTIVE_TINT
+        self.refract = 1.2
+        self.thickness = 5
+        self.piping = False   # the pill is a soft lift, not a lit capsule
         self._init_glass()
 
         self.active = False
-        self.setFixedSize(84, 48)
+        self.setFixedSize(84, 46)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 5, 0, 4)
-        layout.setSpacing(1)
+        layout.setContentsMargins(0, 4, 0, 3)
+        layout.setSpacing(0)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        # The emoji is pre-rendered to pixmaps at two opacities rather than
+        # dimmed with a QGraphicsOpacityEffect. A child carrying an effect is
+        # composited before the parent's paintEvent, so the active tab's glass
+        # painted straight over it and the emoji vanished.
+        self._icon_on = self._emoji_pixmap(emoji, 26, 1.0)
+        self._icon_off = self._emoji_pixmap(emoji, 26, 0.55)
+
         self.icon_label = QLabel()
-        self.icon_label.setPixmap(QPixmap(icon_path).scaled(
-            22, 22, Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation))
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.icon_label.setStyleSheet("background: transparent;")
 
@@ -219,9 +224,6 @@ class TabButton(QWidget, aero.LiquidMixin):
 
         layout.addWidget(self.icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.caption, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        self._dim = QGraphicsOpacityEffect(self.icon_label)
-        self.icon_label.setGraphicsEffect(self._dim)
 
         self._on_click = on_click
         self.set_active(False)
@@ -233,13 +235,27 @@ class TabButton(QWidget, aero.LiquidMixin):
             self._on_click()
             event.accept()
 
+    @staticmethod
+    def _emoji_pixmap(emoji, size, opacity):
+        pm = QPixmap(size, size)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setOpacity(opacity)
+        font = QFont()
+        font.setPixelSize(int(size * 0.76))
+        p.setFont(font)
+        p.drawText(QRect(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, emoji)
+        p.end()
+        return pm
+
     def set_active(self, active):
         self.active = active
-        self._dim.setOpacity(1.0 if active else 0.62)
+        self.icon_label.setPixmap(self._icon_on if active else self._icon_off)
         self.caption.setStyleSheet(
-            f"color: {aero.TEXT if active else aero.TEXT_DIM};"
+            f"color: {aero.TEXT if active else 'rgba(214, 236, 248, 170)'};"
             f" font-size: 9px; font-family: 'DM Sans';"
-            f" font-weight: {700 if active else 500}; background: transparent;")
+            f" font-weight: {600 if active else 500}; background: transparent;")
         self.invalidate_glass()
 
     def paintEvent(self, event):

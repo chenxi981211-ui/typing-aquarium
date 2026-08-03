@@ -26,6 +26,9 @@ AMBER = "#FFD696"
 TEXT = "#FFFFFF"
 TEXT_DIM = "rgba(235, 249, 255, 240)"
 
+# Numerals get a typewriter face; the rest of the UI stays humanist.
+NUMERIC_FONT = "'American Typewriter', 'Courier New', monospace"
+
 # ===== effect strength =====
 # Turned down from the first pass: the gloss was washing out the top of every
 # panel, which is what made white text hard to read.
@@ -37,14 +40,15 @@ RING_LIGHT_ALPHA = 15     # was 30
 # How much of the blurred tank art each surface paints. The shell stays low so
 # the real desktop shows through the window; panels sit a little more solid so
 # text has something to sit on.
-SHELL_BACKDROP_OPACITY = 0.30
-PANEL_BACKDROP_OPACITY = 0.55
+SHELL_BACKDROP_OPACITY = 0.62
+PANEL_BACKDROP_OPACITY = 0.78
 
-SHELL_TINT = QColor(10, 48, 88, 140)
+SHELL_TINT = QColor(10, 48, 88, 168)
 PANEL_TINT = QColor(22, 92, 148, 96)
 BAR_TINT = QColor(20, 86, 142, 104)
 ACTIVE_TINT = QColor(96, 216, 232, 120)
 SUNK_TINT = QColor(8, 44, 82, 104)
+TAB_ACTIVE_TINT = QColor(126, 226, 240, 72)   # deliberately gentle
 
 # The backdrop is built once at this height and anchored to the top, so the
 # window can animate between page heights without re-blurring every frame.

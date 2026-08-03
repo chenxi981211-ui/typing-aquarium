@@ -51,7 +51,9 @@ class AquariumWidget(QWidget):
 
         # Window dimensions
         self.window_width = 378
-        self.window_height = 460
+        # Tall enough for tank + stat cards + the taller glass chrome. At 460
+        # the cards overlapped the tank by 19px.
+        self.window_height = 482
         self.setFixedSize(self.window_width, self.window_height)
 
         self.setWindowFlags(
@@ -301,9 +303,9 @@ class AquariumWidget(QWidget):
         bottom_layout.setContentsMargins(4, 3, 4, 3)
         bottom_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.chest_btn = TabButton("assets/treasure_chest_icon.png", "Collection", self.show_collection)
-        self.tank_btn = TabButton("assets/fish_count_icon.png", "Aquarium", self.show_aquarium)
-        self.stats_btn = TabButton("assets/statistics_icon.png", "Statistics", self.show_statistics)
+        self.chest_btn = TabButton("🐚", "Collection", self.show_collection)
+        self.tank_btn = TabButton("🐠", "Aquarium", self.show_aquarium)
+        self.stats_btn = TabButton("📊", "Statistics", self.show_statistics)
 
         bottom_layout.addWidget(self.chest_btn)
         bottom_layout.addWidget(self.tank_btn)

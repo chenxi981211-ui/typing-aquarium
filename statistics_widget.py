@@ -49,9 +49,9 @@ class StatHalf(QWidget):
         self.value_label = QLabel("0")
         self.value_label.setStyleSheet(f"""
             color: {accent};
-            font-size: 20px;
+            font-size: 21px;
             font-weight: bold;
-            font-family: 'Sometype Mono';
+            font-family: {aero.NUMERIC_FONT};
             background: transparent;
         """)
 
