@@ -24,27 +24,13 @@ AQUA = "#8AF0FA"
 VIOLET = "#C6B0FF"
 AMBER = "#FFD696"
 TEXT = "#FFFFFF"
-TEXT_DIM = "rgba(235, 249, 255, 240)"
+TEXT_DIM = "rgba(222, 243, 255, 200)"
 
-# ===== effect strength =====
-# Turned down from the first pass: the gloss was washing out the top of every
-# panel, which is what made white text hard to read.
-GLOSS_ALPHA = 66          # was 132
-PIPING_ALPHA = 44         # was 96
-RIM_TOP_ALPHA = 170       # was 240
-RING_LIGHT_ALPHA = 15     # was 30
-
-# How much of the blurred tank art each surface paints. The shell stays low so
-# the real desktop shows through the window; panels sit a little more solid so
-# text has something to sit on.
-SHELL_BACKDROP_OPACITY = 0.30
-PANEL_BACKDROP_OPACITY = 0.55
-
-SHELL_TINT = QColor(10, 48, 88, 140)
-PANEL_TINT = QColor(22, 92, 148, 96)
-BAR_TINT = QColor(20, 86, 142, 104)
-ACTIVE_TINT = QColor(96, 216, 232, 120)
-SUNK_TINT = QColor(8, 44, 82, 104)
+SHELL_TINT = QColor(28, 122, 192, 104)
+PANEL_TINT = QColor(30, 124, 190, 92)
+BAR_TINT = QColor(26, 116, 186, 108)
+ACTIVE_TINT = QColor(120, 235, 245, 118)
+SUNK_TINT = QColor(16, 80, 138, 80)
 
 # The backdrop is built once at this height and anchored to the top, so the
 # window can animate between page heights without re-blurring every frame.
@@ -103,15 +89,11 @@ def backdrop_pixmap(image_path, width, height=BACKDROP_HEIGHT, blur=30, dim=0.42
 
 
 def paint_liquid(painter, rect, radius, backdrop, origin=QPoint(0, 0),
-                 tint=PANEL_TINT, refract=1.26, gloss=True, piping=True, thickness=6,
-                 backdrop_opacity=PANEL_BACKDROP_OPACITY):
+                 tint=PANEL_TINT, refract=1.26, gloss=True, piping=True, thickness=6):
     """Paint one pane of liquid glass.
 
     `origin` is where this widget sits inside the window, so the backdrop lines
     up across every panel instead of restarting at each widget's corner.
-
-    `backdrop_opacity` below 1 lets whatever is behind the window show through,
-    since the art is painted onto a translucent window rather than an opaque one.
     """
     body = rounded(rect, radius)
     painter.save()
@@ -121,9 +103,7 @@ def paint_liquid(painter, rect, radius, backdrop, origin=QPoint(0, 0),
     # 1. frosted body
     painter.setClipPath(body)
     if backdrop is not None:
-        painter.setOpacity(backdrop_opacity)
         painter.drawPixmap(-origin.x(), -origin.y(), backdrop)
-        painter.setOpacity(1.0)
 
     # 2. refracted rim - the same backdrop, larger, only inside the border band
     inner = QRectF(rect.x() + thickness, rect.y() + thickness,
@@ -137,20 +117,16 @@ def paint_liquid(painter, rect, radius, backdrop, origin=QPoint(0, 0),
             t.scale(refract, refract)
             t.translate(-rect.center().x(), -rect.center().y())
             painter.setTransform(t, True)
-            painter.setOpacity(backdrop_opacity)
             painter.drawPixmap(-origin.x(), -origin.y(), backdrop)
-            painter.setOpacity(1.0)
             painter.resetTransform()
             painter.setClipPath(ring)
-        painter.fillPath(ring, QColor(255, 255, 255, RING_LIGHT_ALPHA))
+        painter.fillPath(ring, QColor(255, 255, 255, 30))
 
     # 3. tint
     painter.setClipPath(body)
     grad = QLinearGradient(rect.topLeft(), rect.bottomLeft())
     grad.setColorAt(0.0, QColor(tint.red(), tint.green(), tint.blue(), min(255, int(tint.alpha() * 1.15))))
-    # The middle used to thin out to 55%, which left text sitting on almost
-    # nothing over a bright desktop. Keeping it closer to full holds contrast.
-    grad.setColorAt(0.5, QColor(tint.red(), tint.green(), tint.blue(), int(tint.alpha() * 0.80)))
+    grad.setColorAt(0.5, QColor(tint.red(), tint.green(), tint.blue(), int(tint.alpha() * 0.55)))
     grad.setColorAt(1.0, QColor(tint.red(), tint.green(), tint.blue(), int(tint.alpha() * 0.95)))
     painter.fillPath(body, grad)
 
@@ -160,8 +136,8 @@ def paint_liquid(painter, rect, radius, backdrop, origin=QPoint(0, 0),
         bulge = QRectF(rect.x() - rect.width() * 0.18, rect.y() - h * 0.72,
                        rect.width() * 1.36, h * 1.55)
         rg = QRadialGradient(bulge.center(), bulge.width() / 2)
-        rg.setColorAt(0.0, QColor(255, 255, 255, GLOSS_ALPHA))
-        rg.setColorAt(0.62, QColor(255, 255, 255, int(GLOSS_ALPHA * 0.4)))
+        rg.setColorAt(0.0, QColor(255, 255, 255, 132))
+        rg.setColorAt(0.62, QColor(255, 255, 255, 54))
         rg.setColorAt(1.0, QColor(255, 255, 255, 0))
         painter.setBrush(rg)
         painter.setPen(Qt.PenStyle.NoPen)
@@ -173,22 +149,22 @@ def paint_liquid(painter, rect, radius, backdrop, origin=QPoint(0, 0),
                       rect.width(), rect.height() * 0.34)
         bg = QLinearGradient(band.topLeft(), band.bottomLeft())
         bg.setColorAt(0.0, QColor(255, 255, 255, 0))
-        bg.setColorAt(0.78, QColor(190, 245, 255, int(PIPING_ALPHA * 0.28)))
-        bg.setColorAt(1.0, QColor(226, 252, 255, PIPING_ALPHA))
+        bg.setColorAt(0.78, QColor(190, 245, 255, 26))
+        bg.setColorAt(1.0, QColor(226, 252, 255, 96))
         painter.fillRect(band, bg)
 
     painter.setClipping(False)
 
     # 6. rims - gradient pen, bright where the light lands
     painter.setBrush(Qt.BrushStyle.NoBrush)
-    painter.setPen(QPen(QColor(4, 24, 48, 96), 1.2))
+    painter.setPen(QPen(QColor(4, 24, 48, 120), 1.4))
     painter.drawPath(body)
 
     rim = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-    rim.setColorAt(0.0, QColor(255, 255, 255, RIM_TOP_ALPHA))
-    rim.setColorAt(0.30, QColor(255, 255, 255, int(RIM_TOP_ALPHA * 0.42)))
-    rim.setColorAt(0.75, QColor(255, 255, 255, int(RIM_TOP_ALPHA * 0.20)))
-    rim.setColorAt(1.0, QColor(226, 250, 255, int(RIM_TOP_ALPHA * 0.50)))
+    rim.setColorAt(0.0, QColor(255, 255, 255, 240))
+    rim.setColorAt(0.30, QColor(255, 255, 255, 130))
+    rim.setColorAt(0.75, QColor(255, 255, 255, 60))
+    rim.setColorAt(1.0, QColor(226, 250, 255, 150))
     painter.setPen(QPen(QBrush(rim), 1.3))
     painter.drawPath(rounded(QRectF(rect.x() + 1.2, rect.y() + 1.2,
                                     rect.width() - 2.4, rect.height() - 2.4),
@@ -210,7 +186,6 @@ class LiquidMixin:
     gloss = True
     piping = True
     thickness = 6
-    backdrop_opacity = PANEL_BACKDROP_OPACITY
 
     def _init_glass(self):
         self._glass_cache = None
@@ -233,8 +208,7 @@ class LiquidMixin:
         backdrop = self._backdrop()
         origin = self._origin()
         key = (self.width(), self.height(), origin.x(), origin.y(),
-               id(backdrop), self.tint.rgba(), self.radius,
-               self.backdrop_opacity, _fast_mode)
+               id(backdrop), self.tint.rgba(), self.radius, _fast_mode)
 
         if self._glass_key != key or self._glass_cache is None:
             cache = QPixmap(self.size())
@@ -242,8 +216,7 @@ class LiquidMixin:
             cp = QPainter(cache)
             paint_liquid(cp, QRectF(0.5, 0.5, self.width() - 1, self.height() - 1),
                          self.radius, backdrop, origin, self.tint,
-                         self.refract, self.gloss, self.piping, self.thickness,
-                         self.backdrop_opacity)
+                         self.refract, self.gloss, self.piping, self.thickness)
             cp.end()
             self._glass_cache = cache
             self._glass_key = key
@@ -253,12 +226,10 @@ class LiquidMixin:
 
 class LiquidPanel(QWidget, LiquidMixin):
     def __init__(self, parent=None, radius=16, tint=PANEL_TINT, refract=1.26,
-                 gloss=True, piping=True, thickness=6,
-                 backdrop_opacity=PANEL_BACKDROP_OPACITY):
+                 gloss=True, piping=True, thickness=6):
         super().__init__(parent)
         self.radius, self.tint, self.refract = radius, tint, refract
         self.gloss, self.piping, self.thickness = gloss, piping, thickness
-        self.backdrop_opacity = backdrop_opacity
         self._init_glass()
 
     def paintEvent(self, event):
@@ -277,7 +248,6 @@ class LiquidShell(QFrame, LiquidMixin):
         self.refract = 1.16
         self.thickness = 9
         self.gloss = False   # too large for a single highlight to look right
-        self.backdrop_opacity = SHELL_BACKDROP_OPACITY
         self._init_glass()
 
     def paintEvent(self, event):
