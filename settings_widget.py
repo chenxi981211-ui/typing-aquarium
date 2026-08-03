@@ -22,15 +22,18 @@ BACKGROUNDS = [
 ]
 
 
-OFF_TINT = QColor(10, 46, 78, 120)
+# On/off must be readable at a glance, so they differ on three axes at once:
+# track colour, track darkness, and knob brightness - not just knob position.
+ON_TINT = QColor(80, 226, 236, 210)
+OFF_TINT = QColor(3, 22, 44, 205)
 
 
 class ToggleSwitch(aero.LiquidPanel):
     """A glass switch: liquid track, glossy knob."""
 
     def __init__(self, checked=False, on_toggle=None, parent=None):
-        super().__init__(parent, radius=13, tint=aero.ACTIVE_TINT if checked else OFF_TINT,
-                         refract=1.5, thickness=3)
+        super().__init__(parent, radius=13, tint=ON_TINT if checked else OFF_TINT,
+                         refract=1.5, thickness=3, backdrop_opacity=0.28)
         self.checked = checked
         self.on_toggle = on_toggle
         self.setFixedSize(48, 26)
@@ -39,7 +42,7 @@ class ToggleSwitch(aero.LiquidPanel):
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.checked = not self.checked
-            self.tint = aero.ACTIVE_TINT if self.checked else OFF_TINT
+            self.tint = ON_TINT if self.checked else OFF_TINT
             self.invalidate_glass()
             sounds.play("click")
             if self.on_toggle:
@@ -51,15 +54,19 @@ class ToggleSwitch(aero.LiquidPanel):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.paint_glass(painter)
 
-        knob_d = self.height() - 6
-        knob_x = self.width() - knob_d - 3 if self.checked else 3
-        knob = QRectF(knob_x, 3, knob_d, knob_d)
+        knob_d = self.height() - 8
+        knob_x = self.width() - knob_d - 4 if self.checked else 4
+        knob = QRectF(knob_x, 4, knob_d, knob_d)
         kg = QRadialGradient(knob.center() - QPointF(0, knob_d * 0.3), knob_d)
-        kg.setColorAt(0.0, QColor(255, 255, 255, 255))
-        kg.setColorAt(0.55, QColor(244, 253, 255, 255))
-        kg.setColorAt(1.0, QColor(186, 222, 240, 255))
+        if self.checked:
+            kg.setColorAt(0.0, QColor(255, 255, 255, 255))
+            kg.setColorAt(1.0, QColor(214, 240, 252, 255))
+        else:
+            # Dimmed when off, so the switch doesn't look lit from across the room
+            kg.setColorAt(0.0, QColor(190, 205, 218, 255))
+            kg.setColorAt(1.0, QColor(126, 146, 166, 255))
         painter.setBrush(kg)
-        painter.setPen(QPen(QColor(6, 36, 64, 130), 1))
+        painter.setPen(QPen(QColor(4, 22, 44, 160), 1))
         painter.drawEllipse(knob)
         painter.end()
 

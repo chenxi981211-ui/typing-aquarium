@@ -58,7 +58,7 @@ class StatHalf(QWidget):
         self.caption_label = QLabel()
         self.caption_label.setTextFormat(Qt.TextFormat.RichText)
         self.caption_label.setText(
-            f"<span style='color: rgba(222,243,255,0.75);'>{caption} • </span>"
+            f"<span style='color: rgba(235,249,255,0.92);'>{caption} • </span>"
             f"<span style='color: #FFFFFF; font-weight: 600;'>{emphasis}</span>"
         )
         self.caption_label.setStyleSheet("""
