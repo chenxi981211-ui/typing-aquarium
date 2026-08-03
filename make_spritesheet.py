@@ -35,7 +35,7 @@ STILLS = os.path.join(ASSETS, "stills")
 
 # Anything not listed swims.
 MOTION = {
-    "cherry_shrimp": "hover",
+    "cherry_shrimp": "shrimp",
     "seahorse": "sway",
 }
 
@@ -109,6 +109,66 @@ def frame_swim(base, phase, amplitude=9.0, waves=1.3):
     return out
 
 
+def smoothstep(edge0, edge1, x):
+    t = min(1.0, max(0.0, (x - edge0) / (edge1 - edge0)))
+    return t * t * (3 - 2 * t)
+
+
+def mesh_warp(image, displace, cells=26):
+    """Warp with a mesh so different parts of the body can move independently.
+
+    `displace(u, v)` takes normalised coordinates and returns (dx, dy) in
+    pixels. Sliding whole columns can only bend a body one way; a mesh lets the
+    antennae flick while the legs flutter at a different rate and the shell
+    stays rigid.
+    """
+    width, height = image.size
+    mesh = []
+    for i in range(cells):
+        for j in range(cells):
+            x0, x1 = i * width / cells, (i + 1) * width / cells
+            y0, y1 = j * height / cells, (j + 1) * height / cells
+            quad = []
+            for px, py in ((x0, y0), (x0, y1), (x1, y1), (x1, y0)):
+                dx, dy = displace(px / width, py / height)
+                quad.extend((px - dx, py - dy))
+            mesh.append(((int(x0), int(y0), int(x1), int(y1)), tuple(quad)))
+    # NEAREST, not BILINEAR: these are hard-edged pixel sprites and bilinear
+    # resampling visibly smudges them.
+    return image.transform((width, height), Image.MESH, mesh, Image.NEAREST)
+
+
+def frame_shrimp(base, phase):
+    """Cherry shrimp: rigid shell, beating swimmerets, flicking antennae.
+
+    The artwork faces right, so the rostrum and antennae are at u=1 and the tail
+    fan at u=0. Crustaceans can't undulate - the body holds its shape and hovers
+    while the appendages do the work, which is what separates this from a fish.
+    """
+    def displace(u, v):
+        # whole animal hovers, with a slight nose-up/nose-down pitch
+        dy = 4.5 * math.sin(phase)
+        dy += 2.6 * math.sin(phase + 0.7) * (u - 0.5) * 2
+        dx = 1.8 * math.sin(phase * 2 + 0.4)
+
+        # antennae: long, thin, upper right - flick faster and lag the body
+        antenna = smoothstep(0.66, 1.0, u) * (1.0 - smoothstep(0.30, 0.72, v))
+        dy += 5.0 * antenna * math.sin(phase * 2 + 1.1)
+        dx += 2.4 * antenna * math.sin(phase * 2 + 1.8)
+
+        # pleopods and walking legs: ventral, fast, travelling back to front
+        legs = smoothstep(0.55, 0.86, v) * smoothstep(0.08, 0.30, u)
+        dy += 2.8 * legs * math.sin(phase * 3 + u * 5.5)
+
+        # tail fan gives a small flex at the far left
+        fan = 1.0 - smoothstep(0.0, 0.22, u)
+        dy += 2.2 * fan * math.sin(phase + 2.4)
+
+        return dx, dy
+
+    return mesh_warp(base, displace)
+
+
 def frame_hover(base, phase, amplitude=6.0):
     """Shrimp hold their shape and scull, so the whole body bobs and tilts
     instead of undulating."""
@@ -134,7 +194,8 @@ def frame_sway(base, phase, amplitude=9.0, bob=3.5):
     return out
 
 
-FRAME_FN = {"swim": frame_swim, "hover": frame_hover, "sway": frame_sway}
+FRAME_FN = {"swim": frame_swim, "hover": frame_hover, "sway": frame_sway,
+            "shrimp": frame_shrimp}
 
 
 def build_sheet(base, motion="swim"):
