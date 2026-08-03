@@ -144,21 +144,21 @@ class AquariumWidget(QWidget):
         right_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(QIcon("assets/settings_icon.png"))
-        self.settings_btn.setIconSize(QSize(16, 16))
-        self.settings_btn.setFixedSize(16, 16)
+        self.settings_btn.setIcon(QIcon(aero.contrast_icon("assets/settings_icon.png", 16)))
+        self.settings_btn.setIconSize(QSize(18, 18))
+        self.settings_btn.setFixedSize(18, 18)
         self.settings_btn.setStyleSheet("background: transparent; border: none;")
 
         self.view_btn = QPushButton()
-        self.view_btn.setIcon(QIcon("assets/minimal_mode_icon.png"))
-        self.view_btn.setIconSize(QSize(16, 16))
-        self.view_btn.setFixedSize(16, 16)
+        self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/minimal_mode_icon.png", 16)))
+        self.view_btn.setIconSize(QSize(18, 18))
+        self.view_btn.setFixedSize(18, 18)
         self.view_btn.setStyleSheet("background: transparent; border: none;")
 
         self.pin_btn = QPushButton()
-        self.pin_btn.setIcon(QIcon("assets/pin_deactivate_button.png"))
-        self.pin_btn.setIconSize(QSize(16, 16))
-        self.pin_btn.setFixedSize(16, 16)
+        self.pin_btn.setIcon(QIcon(aero.contrast_icon("assets/pin_deactivate_button.png", 16)))
+        self.pin_btn.setIconSize(QSize(18, 18))
+        self.pin_btn.setFixedSize(18, 18)
         self.pin_btn.setStyleSheet("background: transparent; border: none;")
 
         right_layout.addWidget(self.settings_btn)
@@ -193,6 +193,10 @@ class AquariumWidget(QWidget):
         aquarium_layout = QVBoxLayout(self.aquarium_content)
         aquarium_layout.setContentsMargins(0, 0, 0, 0)
         aquarium_layout.setSpacing(0)
+        # Top-anchored, centred horizontally only. With AlignCenter the tank
+        # re-centred vertically whenever the stat cards were hidden, so it crept
+        # downwards on every minimise/expand and the two eventually collided.
+        aquarium_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # Aquarium container
         aquarium_width = 354
@@ -240,7 +244,7 @@ class AquariumWidget(QWidget):
         fish_count_layout.addWidget(self.fish_count_label)
         self.fish_count_widget.raise_()
 
-        aquarium_layout.addWidget(self.aquarium_container, alignment=Qt.AlignmentFlag.AlignCenter)
+        aquarium_layout.addWidget(self.aquarium_container, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         # Stats cards
         self.stats_container = QWidget()
@@ -256,7 +260,8 @@ class AquariumWidget(QWidget):
         stats_layout.addWidget(self.wpm_card, 1)
         stats_layout.addWidget(self.focus_card, 1)
 
-        aquarium_layout.addWidget(self.stats_container, alignment=Qt.AlignmentFlag.AlignCenter)
+        aquarium_layout.addWidget(self.stats_container, alignment=Qt.AlignmentFlag.AlignHCenter)
+        aquarium_layout.addStretch()
 
         self.content_stack.addWidget(self.aquarium_content)
         # Expanding vertically so the scrolling pages fill the taller windows;
@@ -350,35 +355,39 @@ class AquariumWidget(QWidget):
             self.show_aquarium()
             return
 
-        if not hasattr(self, 'original_window_height'):
-            self.original_window_height = self.height()
-
         current_rect = self.geometry()
 
         if self.large_mode:
-            target_height = self.top_bar.height() + self.aquarium_container.height() + 25
+            # Measure where the tank actually ends rather than adding up a magic
+            # constant - the chrome has changed height twice and the old formula
+            # left uneven padding above and below the tank.
+            self.fade_out_widgets()
+            tank_bottom = (self.aquarium_container.mapTo(self, QPoint(0, 0)).y()
+                           + self.aquarium_container.height())
+            target_height = tank_bottom + self.TANK_MARGIN
+
             target_rect = QRect(current_rect.x(), current_rect.y(),
                                 self.window_width, target_height)
-
-            self.fade_out_widgets()
             self.border_widget.setGeometry(0, 0, self.window_width, target_height)
             self.animate_resize(target_rect)
 
-            self.view_btn.setIcon(QIcon("assets/large_mode_icon.png"))
+            self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/large_mode_icon.png", 16)))
             self.large_mode = False
 
         else:
+            # Always restore to the known full height. Capturing it on first
+            # toggle meant a stale value could come back too short, which left
+            # the stat cards overlapping the tank again.
             target_rect = QRect(current_rect.x(), current_rect.y(),
-                                self.window_width, self.original_window_height)
+                                self.window_width, self.window_height)
 
-            self.border_widget.setGeometry(0, 0, self.window_width, self.original_window_height)
-            self.animate_resize(target_rect)
-            QTimer.singleShot(300, self.fade_in_widgets)
+            self.border_widget.setGeometry(0, 0, self.window_width, self.window_height)
+            self.animate_resize(target_rect, on_finish=self.fade_in_widgets)
 
-            self.view_btn.setIcon(QIcon("assets/minimal_mode_icon.png"))
+            self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/minimal_mode_icon.png", 16)))
             self.large_mode = True
 
-    def animate_resize(self, target_rect):
+    def animate_resize(self, target_rect, on_finish=None):
         """Smoothly animate window resize"""
         self.setMinimumSize(0, 0)
         self.setMaximumSize(16777215, 16777215)
@@ -393,6 +402,10 @@ class AquariumWidget(QWidget):
         self.anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
         self.anim.setEndValue(target_rect)
         self.anim.finished.connect(self.restore_fixed_size)
+        if on_finish is not None:
+            # Run after the geometry has settled - re-showing the stat cards
+            # mid-animation makes them fight the window for space.
+            self.anim.finished.connect(on_finish)
         self.anim.start()
 
     def restore_fixed_size(self):
@@ -410,22 +423,19 @@ class AquariumWidget(QWidget):
         self.update()
 
     def fade_in_widgets(self):
-        """Fade in stats and buttons (dots removed)"""
+        """Restore the stat cards and tab bar after leaving minimal mode.
+
+        The dividers stay hidden: the glass strips already separate the header
+        and footer. Re-showing them added 13px of layout above the tank on every
+        expand, which pushed the tank down into the stat cards.
+        """
         self.stats_container.show()
         self.bottom_buttons.show()
 
-        if hasattr(self, 'divider1'):
-            self.divider1.show()
-            self.divider2.show()
-
     def fade_out_widgets(self):
-        """Fade out stats and buttons (dots removed)"""
+        """Hide the stat cards and tab bar for minimal mode."""
         self.stats_container.hide()
         self.bottom_buttons.hide()
-
-        if hasattr(self, 'divider1'):
-            self.divider1.hide()
-            self.divider2.hide()
 
     def toggle_pin_status(self):
         """Toggle the window's 'always on top' state - ONLY CONTROLS AQUARIUM"""
@@ -460,6 +470,10 @@ class AquariumWidget(QWidget):
     # Sized so the grid shows 2.5 rows of 130px cards - the half row is the cue
     # that the list scrolls. 12px grid margin + 2 rows + 2 gaps + half a card,
     # plus the 40px filter bar and the window chrome.
+    # Padding under the tank in minimal mode, matched to the 10px inset used
+    # on the tank's left and right, so it sits evenly in the collapsed window.
+    TANK_MARGIN = 12
+
     COLLECTION_PAGE_HEIGHT = 521
 
     def show_collection(self):

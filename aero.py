@@ -113,6 +113,63 @@ def svg_pixmap(path, size, colour=None, scale=2):
     return pixmap
 
 
+_icon_cache = {}
+
+
+def contrast_icon(path, size, colour=QColor(255, 255, 255), halo=140):
+    """A PNG icon recoloured and given a dark halo.
+
+    The title-bar icons ship in pale tones that sit close to the glass behind
+    them. Forcing them white and ringing them with a soft dark shadow separates
+    them from the bar without darkening the bar itself.
+    """
+    key = (path, size, colour.name(), halo)
+    if key in _icon_cache:
+        return _icon_cache[key]
+
+    source = QPixmap(path)
+    if source.isNull():
+        print(f"⚠️ Icon not found: {path}")
+        _icon_cache[key] = source
+        return source
+
+    scale = 2
+    box = size * scale
+    source = source.scaled(box, box, Qt.AspectRatioMode.KeepAspectRatio,
+                           Qt.TransformationMode.SmoothTransformation)
+
+    # Silhouette of the icon, used for the halo
+    shadow = QPixmap(source.size())
+    shadow.fill(Qt.GlobalColor.transparent)
+    sp = QPainter(shadow)
+    sp.drawPixmap(0, 0, source)
+    sp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    sp.fillRect(shadow.rect(), QColor(2, 18, 38, halo))
+    sp.end()
+
+    tinted = QPixmap(source.size())
+    tinted.fill(Qt.GlobalColor.transparent)
+    tp = QPainter(tinted)
+    tp.drawPixmap(0, 0, source)
+    tp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    tp.fillRect(tinted.rect(), colour)
+    tp.end()
+
+    out = QPixmap(box + 2 * scale, box + 2 * scale)
+    out.fill(Qt.GlobalColor.transparent)
+    op = QPainter(out)
+    op.setRenderHint(QPainter.RenderHint.Antialiasing)
+    for dx, dy in ((0, scale), (scale, scale), (scale, 0), (0, 0), (2 * scale, scale),
+                   (scale, 2 * scale)):
+        op.drawPixmap(dx, dy, shadow)
+    op.drawPixmap(scale, scale, tinted)
+    op.end()
+
+    out.setDevicePixelRatio(scale)
+    _icon_cache[key] = out
+    return out
+
+
 def backdrop_pixmap(image_path, width, height=BACKDROP_HEIGHT, blur=30, dim=0.42):
     """Blurred, blue-shifted copy of the tank art, used as the window backdrop."""
     key = (image_path, width, height, blur, dim)

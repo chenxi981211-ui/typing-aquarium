@@ -115,8 +115,8 @@ class StatCard(QWidget, aero.LiquidMixin):
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setStyleSheet(f"""
             color: {accent};
-            font-size: 18px;
-            font-weight: 500;
+            font-size: 16px;
+            font-weight: bold;
             font-family: {aero.NUMERIC_FONT};
             background: transparent;
         """)
@@ -203,7 +203,7 @@ class TabButton(QWidget, aero.LiquidMixin):
 
         self.active = False
         self._on_click = on_click
-        self.setFixedSize(56, 50)
+        self.setFixedSize(56, 42)
         self.setToolTip(tooltip)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -226,7 +226,8 @@ class TabButton(QWidget, aero.LiquidMixin):
         self.update()
 
     def _orb_rect(self):
-        return QRectF((self.width() - self.ORB) / 2, 2, self.ORB, self.ORB)
+        return QRectF((self.width() - self.ORB) / 2, (self.height() - self.ORB) / 2,
+                      self.ORB, self.ORB)
 
     def paint_glass(self, painter):
         """Only the orb is glass, not the whole widget, so cache just that."""
@@ -263,12 +264,6 @@ class TabButton(QWidget, aero.LiquidMixin):
         p.drawPixmap(int(orb.center().x() - self.ICON / 2),
                      int(orb.center().y() - self.ICON / 2), icon)
         p.setOpacity(1.0)
-
-        if self.active:
-            dot = QRectF(self.width() / 2 - 2.5, orb.bottom() + 5, 5, 5)
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(126, 232, 244))
-            p.drawEllipse(dot)
 
         p.end()
 
