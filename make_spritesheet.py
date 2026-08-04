@@ -139,6 +139,23 @@ def mesh_warp(image, displace, cells=26):
     return image.transform((width, height), Image.MESH, mesh, Image.NEAREST)
 
 
+def rigid_offset(u, v, angle_deg, pivot=(0.32, 0.44), size=FRAME):
+    """Displacement for rotating a point about a pivot as part of a solid body.
+
+    Applied across the whole frame this rotates the sprite rigidly - no shear,
+    no bending. Points far from the pivot travel furthest, so a pivot set behind
+    the head makes the torso swing while the nose barely moves, which is what
+    sculling actually looks like.
+    """
+    angle = math.radians(angle_deg)
+    x, y = u * size, v * size
+    px, py = pivot[0] * size, pivot[1] * size
+    cos_a, sin_a = math.cos(angle), math.sin(angle)
+    dx = (cos_a - 1) * (x - px) - sin_a * (y - py)
+    dy = sin_a * (x - px) + (cos_a - 1) * (y - py)
+    return dx, dy
+
+
 def frame_veil(base, phase, body_line=0.42, fin_start=0.10, caudal_start=0.55):
     """Long-finned hoverer: compact body, huge fins that trail behind it.
 
@@ -157,18 +174,22 @@ def frame_veil(base, phase, body_line=0.42, fin_start=0.10, caudal_start=0.55):
         caudal_fin = smoothstep(caudal_start, 0.95, u)
         fin = max(vertical_fin, caudal_fin)
 
-        # body: hovering, with only a slight wave towards the tail
-        dy = 2.4 * math.sin(phase)
-        dy += 1.6 * math.sin(phase + 0.5) * smoothstep(0.15, 0.7, u)
-        dx = 1.2 * math.sin(phase * 2 + 0.3)
+        # The torso swings as one solid piece rather than bending. Rotating the
+        # whole frame about a pivot behind the head keeps the body rigid and
+        # still carries the fins along, since they sit furthest from the pivot.
+        dx, dy = rigid_offset(u, v, 4.0 * math.sin(phase), pivot=(0.30, 0.44))
 
-        # fins trail: the further out, the later the phase arrives
+        # bob and a little surge, again as whole-body movement
+        dy += 3.0 * math.sin(phase + 0.6)
+        dx += 1.6 * math.sin(phase * 2 + 0.3)
+
+        # fins add a trailing ripple on top of the rigid swing
         lag = 1.9 * fin
-        dy += 10.5 * fin * math.sin(phase - lag + u * 3.0)
-        dx += 4.2 * caudal_fin * math.sin(phase - lag + 0.6)
+        dy += 5.5 * fin * math.sin(phase - lag + u * 3.0)
+        dx += 2.4 * caudal_fin * math.sin(phase - lag + 0.6)
 
         # a finer ripple across the membrane, twice per cycle
-        dy += 3.4 * fin * math.sin(phase * 2 - lag + v * 7.0)
+        dy += 2.6 * fin * math.sin(phase * 2 - lag + v * 7.0)
 
         # pectoral fan just behind the head flutters fast and independently
         pectoral = (smoothstep(0.16, 0.24, u) * (1.0 - smoothstep(0.30, 0.40, u))
