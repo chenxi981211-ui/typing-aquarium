@@ -29,12 +29,12 @@ class FishDetailsWindow(QWidget):
             Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(360, 520)
+        self.setFixedSize(360, 596)
         self.setWindowTitle("")
 
         # === Main container with rounded corners ===
         main_container = QFrame(self)
-        main_container.setGeometry(0, 0, 360, 520)
+        main_container.setGeometry(0, 0, 360, 596)
         main_container.setStyleSheet("""
             QFrame {
                 background-color: rgba(7, 18, 35, 240);
@@ -89,26 +89,28 @@ class FishDetailsWindow(QWidget):
         main_layout.addWidget(sci_label)
 
         # ===== FISH SPRITE =====
+        # Large, on no panel at all, and scaled with FastTransformation: these
+        # are pixel sprites, and smooth scaling blurs them into mush.
         self.image_label = QLabel()
-        self.image_label.setFixedSize(80, 80)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setScaledContents(True)
+        self.image_label.setStyleSheet("background: transparent;")
 
         print(f"📷 Loading image for: {self.fish_id}")
-        img_path = f"assets/thumbnails/{self.fish_id}.png"
-        if not os.path.exists(img_path):
-            img_path = f"assets/{self.fish_id}_swim.png"
-            if os.path.exists(img_path):
-                pixmap = first_frame_pixmap(img_path).scaled(
-                    80, 80, Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
-                )
-            else:
-                pixmap = QPixmap("assets/default_fish.png")
-        else:
-            pixmap = QPixmap(img_path).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio)
+        thumbnail = f"assets/thumbnails/{self.fish_id}.png"
+        sprite = f"assets/{self.fish_id}_swim.png"
 
-        self.image_label.setPixmap(pixmap)
+        if os.path.exists(thumbnail):
+            source = QPixmap(thumbnail)
+        elif os.path.exists(sprite):
+            source = first_frame_pixmap(sprite)
+        else:
+            source = QPixmap("assets/default_fish.png")
+
+        hero = self._hero_pixmap(source)
+        self.image_label.setPixmap(hero)
+        # Fixed to the sprite's own size - a fixed square would reserve empty
+        # rows that push the rest of the page off the bottom of the window.
+        self.image_label.setFixedSize(hero.width(), hero.height())
         main_layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # ===== RARITY BADGE (matching Collection screen style) =====
@@ -219,8 +221,7 @@ class FishDetailsWindow(QWidget):
         """)
         main_layout.addWidget(unlock_label)
 
-        unlock_text = self.get_unlock_condition()
-        unlock_value = QLabel(unlock_text)
+        unlock_value = QLabel(self.get_unlock_condition())
         unlock_value.setStyleSheet("""
             color: white;
             font-size: 14px;
@@ -229,6 +230,21 @@ class FishDetailsWindow(QWidget):
         """)
         unlock_value.setWordWrap(True)
         main_layout.addWidget(unlock_value)
+
+        # The flavour line sits under the real condition rather than replacing
+        # it, which is what used to happen.
+        flavour = self.get_unlock_flavour()
+        if flavour:
+            flavour_label = QLabel(flavour)
+            flavour_label.setStyleSheet("""
+                color: rgba(255, 255, 255, 0.55);
+                font-size: 12px;
+                font-style: italic;
+                font-family: 'DM Sans';
+                background: transparent;
+            """)
+            flavour_label.setWordWrap(True)
+            main_layout.addWidget(flavour_label)
 
         main_layout.addStretch()
 
@@ -289,31 +305,75 @@ class FishDetailsWindow(QWidget):
                 return date
         return "Not yet discovered"
 
+    # The hero is a bare sprite on no panel, so it can be generously large.
+    HERO_W, HERO_H = 232, 150
+
+    @staticmethod
+    def _crop_to_content(pixmap):
+        """Trim the transparent border off a sprite frame.
+
+        Generated frames centre the fish inside 256x256 with a lot of empty
+        space around it. Scaling that whole square just scales the emptiness -
+        cropping first is what actually makes the fish big.
+        """
+        if pixmap.isNull():
+            return pixmap
+
+        image = pixmap.toImage()
+        width, height = image.width(), image.height()
+        left, top, right, bottom = width, height, -1, -1
+        for y in range(height):
+            for x in range(width):
+                if image.pixelColor(x, y).alpha() > 10:
+                    left = min(left, x)
+                    right = max(right, x)
+                    top = min(top, y)
+                    bottom = max(bottom, y)
+        if right < 0:
+            return pixmap
+        return pixmap.copy(left, top, right - left + 1, bottom - top + 1)
+
+    def _hero_pixmap(self, source):
+        """Crop to the fish, then scale it up without blurring.
+
+        FastTransformation is deliberate: these are hard-edged pixel sprites and
+        smooth scaling turns them to mush.
+        """
+        source = self._crop_to_content(source)
+        if source.isNull() or source.width() == 0:
+            return source
+
+        return source.scaled(self.HERO_W, self.HERO_H,
+                             Qt.AspectRatioMode.KeepAspectRatio,
+                             Qt.TransformationMode.FastTransformation)
+
     def get_unlock_condition(self):
-        """Get the unlock condition as a readable string"""
+        """Spell out exactly what earns this fish.
+
+        The wording tracks what UnlockManager.update_qualifiers actually tests -
+        char_count and typing_speed are measured over a single day, not all
+        time, which the previous text got wrong. The flavour line is returned
+        separately so the real condition is never hidden behind it.
+        """
         unlock = self.fish_data.get("unlock", {})
         unlock_type = unlock.get("type", "unknown")
-        unlock_value = unlock.get("value", 0)
-        label_reason = unlock.get("label_reason", "")
+        value = unlock.get("value", 0)
+        amount = f"{value:,}" if isinstance(value, (int, float)) else str(value)
 
-        if isinstance(unlock_value, (int, float)):
-            formatted_value = f"{unlock_value:,}"
-        else:
-            formatted_value = str(unlock_value)
-
-        type_map = {
-            "char_count": f"Type {formatted_value} characters total",
-            "typing_speed": f"Reach {formatted_value} WPM",
-            "focus": f"Focus for {formatted_value} minutes",
-            "burst": f"Maintain burst speed for {formatted_value} minutes",
-            "streak": f"Log in for {formatted_value} days in a row",
-            "day_night": f"Unlocked during {formatted_value}",
-            "random": "Completely random chance!"
+        conditions = {
+            "char_count": f"Type {amount} characters in one day",
+            "typing_speed": f"Reach {amount} WPM in one day",
+            "focus": f"Type for {amount} minutes without pausing for more than a minute",
+            "burst": f"Hold 50 WPM or more for {amount} minutes",
+            "streak": f"Type on {amount} days in a row",
+            "day_night": ("Only appears during the day" if value == "day"
+                          else "Only appears at night"),
+            "random": "Can turn up at any time, purely by chance",
         }
+        return conditions.get(unlock_type, f"Unknown condition: {unlock_type}")
 
-        if label_reason:
-            return label_reason
-        return type_map.get(unlock_type, f"Unknown: {unlock_type}")
+    def get_unlock_flavour(self):
+        return self.fish_data.get("unlock", {}).get("label_reason", "")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

@@ -2,7 +2,7 @@
   {
     "id": "guppy",
     "name": "Guppy",
-    "scientific_name": "Poecilia Reticulata",
+    "scientific_name": "Poecilia reticulata",
     "rarity": 100,
     "max_owned": 99,
     "unlock": {
@@ -23,7 +23,7 @@
   {
     "id": "sardine",
     "name": "Sardine",
-    "scientific_name": "Sardina Pilchardus",
+    "scientific_name": "Sardina pilchardus",
     "rarity": 100,
     "max_owned": 99,
     "unlock": {
@@ -44,7 +44,7 @@
   {
     "id": "squirrelfish",
     "name": "Squirrelfish",
-    "scientific_name": "Holocentrus Adscensionis",
+    "scientific_name": "Holocentrus adscensionis",
     "rarity": 90,
     "max_owned": 99,
     "unlock": {
@@ -65,7 +65,7 @@
   {
     "id": "betta_fish",
     "name": "Betta Fish",
-    "scientific_name": "Betta Splendens",
+    "scientific_name": "Betta splendens",
     "rarity": 80,
     "max_owned": 99,
     "unlock": {
@@ -80,13 +80,13 @@
     },
     "display": {
       "tier_label": "Common",
-      "description": "The definition of bold. They have a \"my way or the highway\" attitude. They are labyrinth fish, meaning they have a special organ that lets them breathe air from the surface—they’re the only fish that could theoretically survive a short trip outside the water."
+      "description": "The definition of bold. They have a “my way or the highway” attitude. They are labyrinth fish, meaning they have a special organ that lets them gulp air straight from the surface, so they can survive in water with almost no oxygen in it."
     }
   },
   {
     "id": "royal_gramma",
     "name": "Royal Gramma",
-    "scientific_name": "Gramma Loreto",
+    "scientific_name": "Gramma loreto",
     "rarity": 70,
     "max_owned": 99,
     "unlock": {
@@ -149,7 +149,7 @@
   {
     "id": "long_finned_zebra_dania",
     "name": "Long Finned Zebra Danio",
-    "scientific_name": "Danio Rerio",
+    "scientific_name": "Danio rerio",
     "rarity": 70,
     "max_owned": 99,
     "unlock": {
@@ -170,7 +170,7 @@
   {
     "id": "ribboned_sweetlips",
     "name": "Ribboned Sweetlips",
-    "scientific_name": "Plectorhinchus Polytaenia",
+    "scientific_name": "Plectorhinchus polytaenia",
     "rarity": 70,
     "max_owned": 99,
     "unlock": {
@@ -212,7 +212,7 @@
   {
     "id": "dwarf_gouramis",
     "name": "Dwarf Gouramis",
-    "scientific_name": "Trichogaster Lalius",
+    "scientific_name": "Trichogaster lalius",
     "rarity": 60,
     "max_owned": 99,
     "unlock": {
@@ -233,7 +233,7 @@
   {
     "id": "clownfish",
     "name": "Clownfish",
-    "scientific_name": "Amphiprion Ocellaris",
+    "scientific_name": "Amphiprion ocellaris",
     "rarity": 60,
     "max_owned": 5,
     "unlock": {
@@ -254,7 +254,7 @@
   {
     "id": "blue_hippo_tang",
     "name": "Blue Hippo Tang",
-    "scientific_name": "Paracanthurus Hepatus",
+    "scientific_name": "Paracanthurus hepatus",
     "rarity": 60,
     "max_owned": 99,
     "unlock": {
@@ -275,7 +275,7 @@
   {
     "id": "green_bird_wrasse",
     "name": "Green Bird Wrasse",
-    "scientific_name": "Gomphosus Caeruleus",
+    "scientific_name": "Gomphosus caeruleus",
     "rarity": 50,
     "max_owned": 99,
     "unlock": {
@@ -296,7 +296,7 @@
   {
     "id": "florida_flag_fish",
     "name": "Florida Flag Fish",
-    "scientific_name": "Jordanella Floridae",
+    "scientific_name": "Jordanella floridae",
     "rarity": 50,
     "max_owned": 99,
     "unlock": {
@@ -317,7 +317,7 @@
   {
     "id": "pictus_catfish",
     "name": "Pictus Catfish",
-    "scientific_name": "Pimelodus Pictus",
+    "scientific_name": "Pimelodus pictus",
     "rarity": 40,
     "max_owned": 2,
     "unlock": {
@@ -338,7 +338,7 @@
   {
     "id": "picasso_triggerfish",
     "name": "Picasso Triggerfish",
-    "scientific_name": "Rhinecanthus Aculeatus",
+    "scientific_name": "Rhinecanthus aculeatus",
     "rarity": 30,
     "max_owned": 2,
     "unlock": {
@@ -359,7 +359,7 @@
   {
     "id": "longnose_butterfly_fish",
     "name": "Longnose Butterfly Fish",
-    "scientific_name": "Forcipiger Flavissimus",
+    "scientific_name": "Forcipiger flavissimus",
     "rarity": 25,
     "max_owned": 5,
     "unlock": {
@@ -380,7 +380,7 @@
   {
     "id": "cherry_shrimp",
     "name": "Cherry Shrimp",
-    "scientific_name": "Neocaridina Davidi",
+    "scientific_name": "Neocaridina davidi",
     "rarity": 25,
     "max_owned": 1,
     "unlock": {
@@ -401,7 +401,7 @@
   {
     "id": "opah",
     "name": "Opah",
-    "scientific_name": "Lampris Guttatus",
+    "scientific_name": "Lampris guttatus",
     "rarity": 20,
     "max_owned": 5,
     "unlock": {
@@ -464,7 +464,7 @@
   {
     "id": "antennata_lionfish",
     "name": "Antennata Lionfish",
-    "scientific_name": "Pterois Antennata",
+    "scientific_name": "Pterois antennata",
     "rarity": 10,
     "max_owned": 1,
     "unlock": {
@@ -485,7 +485,7 @@
   {
     "id": "moorish_idol",
     "name": "Moorish Idol",
-    "scientific_name": "Zanclus Cornutus",
+    "scientific_name": "Zanclus cornutus",
     "rarity": 10,
     "max_owned": 1,
     "unlock": {
@@ -506,7 +506,7 @@
   {
     "id": "coelacanth",
     "name": "Coelacanth",
-    "scientific_name": "Latimeria Chalumnae",
+    "scientific_name": "Latimeria chalumnae",
     "rarity": 5,
     "max_owned": 1,
     "unlock": {
@@ -527,7 +527,7 @@
   {
     "id": "mega_mouth_shark",
     "name": "Mega Mouth Shark",
-    "scientific_name": "Megachasma Pelagios",
+    "scientific_name": "Megachasma pelagios",
     "rarity": 5,
     "max_owned": 1,
     "unlock": {
@@ -548,7 +548,7 @@
   {
     "id": "swordfish",
     "name": "Swordfish",
-    "scientific_name": "Xiphias Gladius",
+    "scientific_name": "Xiphias gladius",
     "rarity": 5,
     "max_owned": 2,
     "unlock": {
@@ -569,7 +569,7 @@
   {
     "id": "peppermint_angelfish",
     "name": "Peppermint Angelfish",
-    "scientific_name": "Centropyge Boylei",
+    "scientific_name": "Centropyge boylei",
     "rarity": 5,
     "max_owned": 1,
     "unlock": {
@@ -590,7 +590,7 @@
   {
     "id": "devil_pupfish",
     "name": "Devil Pupfish",
-    "scientific_name": "Cyprinodon Diabolis",
+    "scientific_name": "Cyprinodon diabolis",
     "rarity": 1,
     "max_owned": 1,
     "unlock": {
@@ -611,7 +611,7 @@
   {
     "id": "lost_shark",
     "name": "Lost Shark",
-    "scientific_name": "Carcharhinus Obsoletus",
+    "scientific_name": "Carcharhinus obsoletus",
     "rarity": 1,
     "max_owned": 1,
     "unlock": {
@@ -626,7 +626,7 @@
     },
     "display": {
       "tier_label": "Legendary",
-      "description": "A true reclusive mystery. This refers to deep-sea species that vanish for decades at a time. Scientists classify them as \"lost\" when they stop showing up in data entirely, only to occasionally reappear in the deep dark."
+      "description": "A true reclusive mystery. Described as a new species only in 2019, from museum specimens collected decades earlier, it has not been recorded alive since 1934 — which is how it earned its name, and why it is feared already extinct."
     }
   }
 ]

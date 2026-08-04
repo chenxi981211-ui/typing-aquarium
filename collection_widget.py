@@ -4,7 +4,7 @@ import json
 import os
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
                              QGridLayout, QLabel, QPushButton, QFrame, QSizePolicy)
-from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtGui import QPixmap, QIcon, QPainter, QColor
 from PyQt6.QtCore import Qt, QSize, QTimer
 
 from ui_components import first_frame_pixmap
@@ -130,6 +130,23 @@ class CollectionWindow(QWidget):
             super().keyPressEvent(event)
 
 
+def silhouette(pixmap):
+    """Flatten a sprite to a soft dark shape, keeping its outline."""
+    if pixmap.isNull():
+        return pixmap
+
+    shape = QPixmap(pixmap.size())
+    shape.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(shape)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.drawPixmap(0, 0, pixmap)
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    painter.fillRect(shape.rect(), QColor(6, 26, 50, 205))
+    painter.end()
+    return shape
+
+
 class FishCard(aero.LiquidPanel):
     """Individual fish card in the collection grid"""
 
@@ -170,25 +187,29 @@ class FishCard(aero.LiquidPanel):
         self.image_label = QLabel()
         self.image_label.setFixedSize(72, 72)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label.setScaledContents(True)
+        # Scaled explicitly below, so let the label centre it rather than
+        # stretching it out of proportion.
+        self.image_label.setScaledContents(False)
 
-        if is_owned:
-            thumbnail_path = f"assets/thumbnails/{fish_data['id']}.png"
-            if os.path.exists(thumbnail_path):
-                pixmap = QPixmap(thumbnail_path)
-            else:
-                sprite_path = f"assets/{fish_data['id']}_swim.png"
-                if os.path.exists(sprite_path):
-                    pixmap = first_frame_pixmap(sprite_path).scaled(
-                        72, 72, Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation
-                    )
-                else:
-                    pixmap = QPixmap("assets/default_fish.png")
-            self.image_label.setPixmap(pixmap)
+        thumbnail_path = f"assets/thumbnails/{fish_data['id']}.png"
+        sprite_path = f"assets/{fish_data['id']}_swim.png"
+
+        if os.path.exists(thumbnail_path):
+            source = QPixmap(thumbnail_path)
+        elif os.path.exists(sprite_path):
+            source = first_frame_pixmap(sprite_path)
         else:
-            pixmap = QPixmap("assets/default_fish.png")
-            self.image_label.setPixmap(pixmap)
+            source = QPixmap("assets/default_fish.png")
+
+        source = source.scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
+
+        if not is_owned:
+            # Silhouette of the actual species rather than one generic fish, so
+            # a locked card still hints at what is waiting behind it.
+            source = silhouette(source)
+
+        self.image_label.setPixmap(source)
 
         image_layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(image_container, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -648,7 +669,9 @@ class CollectionWidget(QWidget):
 
         filtered_fish.sort(key=lambda x: x[0].get("rarity", 50), reverse=True)
 
-        owned_count = len(owned_ids)
+        # owned_fish is a running list that repeats a species each time it is
+        # caught again, so it has to be de-duplicated before counting.
+        owned_count = len(set(owned_ids))
         total_count = len(self.all_fish)
         self.discovery_label.setText(f"{owned_count}/{total_count} discovered")
 
