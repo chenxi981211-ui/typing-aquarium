@@ -229,27 +229,28 @@ def frame_rigid_fins(base, phase, pectoral=(0.44, 0.66, 0.34, 0.66), caudal_star
 def frame_shrimp(base, phase):
     """Cherry shrimp: rigid shell, beating swimmerets, flicking antennae.
 
-    The artwork faces right, so the rostrum and antennae are at u=1 and the tail
-    fan at u=0. Crustaceans can't undulate - the body holds its shape and hovers
-    while the appendages do the work, which is what separates this from a fish.
+    The source art faces right but is mirrored before it gets here, so as with
+    every other sprite the rostrum and antennae sit at u=0 and the tail fan at
+    u=1. Crustaceans can't undulate - the body holds its shape and hovers while
+    the appendages do the work, which is what separates this from a fish.
     """
     def displace(u, v):
         # whole animal hovers, with a slight nose-up/nose-down pitch
         dy = 4.5 * math.sin(phase)
-        dy += 2.6 * math.sin(phase + 0.7) * (u - 0.5) * 2
+        dy += 2.6 * math.sin(phase + 0.7) * (0.5 - u) * 2
         dx = 1.8 * math.sin(phase * 2 + 0.4)
 
-        # antennae: long, thin, upper right - flick faster and lag the body
-        antenna = smoothstep(0.66, 1.0, u) * (1.0 - smoothstep(0.30, 0.72, v))
+        # antennae: long, thin, upper front - flick faster and lag the body
+        antenna = (1.0 - smoothstep(0.0, 0.34, u)) * (1.0 - smoothstep(0.30, 0.72, v))
         dy += 5.0 * antenna * math.sin(phase * 2 + 1.1)
         dx += 2.4 * antenna * math.sin(phase * 2 + 1.8)
 
-        # pleopods and walking legs: ventral, fast, travelling back to front
-        legs = smoothstep(0.55, 0.86, v) * smoothstep(0.08, 0.30, u)
-        dy += 2.8 * legs * math.sin(phase * 3 + u * 5.5)
+        # pleopods and walking legs: ventral, fast, travelling front to back
+        legs = smoothstep(0.55, 0.86, v) * (1.0 - smoothstep(0.70, 0.92, u))
+        dy += 2.8 * legs * math.sin(phase * 3 + (1.0 - u) * 5.5)
 
-        # tail fan gives a small flex at the far left
-        fan = 1.0 - smoothstep(0.0, 0.22, u)
+        # tail fan gives a small flex at the far end
+        fan = smoothstep(0.78, 1.0, u)
         dy += 2.2 * fan * math.sin(phase + 2.4)
 
         return dx, dy
@@ -278,9 +279,39 @@ def frame_bcf(base, phase, amplitude=9.0, envelope=2.0, waves=1.1, beat=1,
     return mesh_warp(base, displace, cells=28)
 
 
+def silhouette_extents(image, samples=96):
+    """Top and bottom of the sprite for each of `samples` columns, normalised.
+
+    Used to find the body's outline. Fins are the outline - so motion aimed at
+    fins has to follow the actual silhouette rather than a rectangle guessed in
+    advance, which on a deep-bodied fish just lands on the belly and dents it.
+    """
+    # Cached on the image itself. Keying a dict by id() would be a trap: CPython
+    # reuses ids once an object is collected, so one fish could be handed
+    # another's silhouette.
+    cached = getattr(image, "_extents", None)
+    if cached and cached[0] == samples:
+        return cached[1]
+
+    width, height = image.size
+    alpha = image.getchannel("A").load()
+    tops, bottoms = [], []
+    for i in range(samples):
+        x = min(width - 1, int((i + 0.5) * width / samples))
+        column = [y for y in range(0, height, 2) if alpha[x, y] > 25]
+        if column:
+            tops.append(min(column) / height)
+            bottoms.append(max(column) / height)
+        else:
+            tops.append(None)
+            bottoms.append(None)
+    image._extents = (samples, (tops, bottoms))
+    return tops, bottoms
+
+
 def frame_mpf(base, phase, swing=1.5, bob=2.8, tail_amp=3.5, tail_beat=1,
-              pectoral=(0.28, 0.52, 0.44, 0.74), pectoral_amp=3.6, pectoral_beat=3,
-              median_amp=0.0, median_beat=2, dorsal_v=0.30, anal_v=0.70):
+              pectoral_amp=3.6, pectoral_beat=3, pectoral_span=(0.26, 0.58),
+              median_amp=0.0, median_beat=2, margin=0.22):
     """Median- and paired-fin swimming: the body stays stiff, fins do the work.
 
     Wrasses, parrotfish, tangs and angelfish row with their pectorals and hold
@@ -288,31 +319,48 @@ def frame_mpf(base, phase, swing=1.5, bob=2.8, tail_amp=3.5, tail_beat=1,
     fins. Both are expressed here - `pectoral_amp` for the rowers, `median_amp`
     for the ripplers - because in both cases the body itself barely bends.
 
-    Fin regions are approximate rectangles in normalised coordinates; without a
-    per-fish mask that is as precise as this can honestly get.
+    Fin movement is applied near the silhouette edge rather than inside a fixed
+    box: `margin` is how far in from the outline counts as fin, as a fraction of
+    the body's depth at that point. Deep in the body the weight falls to zero,
+    so the belly never gets pushed around.
     """
-    u0, u1, v0, v1 = pectoral
+    tops, bottoms = silhouette_extents(base)
+    samples = len(tops)
+    pu0, pu1 = pectoral_span
+
+    def edge_weight(u, v):
+        """1 at the silhouette's top/bottom edge, 0 deep inside the body."""
+        i = min(samples - 1, max(0, int(u * samples)))
+        top, bottom = tops[i], bottoms[i]
+        if top is None or bottom - top < 1e-3:
+            return 0.0, 0.0
+        depth = bottom - top
+        upper = 1.0 - smoothstep(0.0, margin, (v - top) / depth)
+        lower = 1.0 - smoothstep(0.0, margin, (bottom - v) / depth)
+        return max(0.0, upper), max(0.0, lower)
 
     def displace(u, v):
         dx, dy = rigid_offset(u, v, swing * math.sin(phase), pivot=(0.30, 0.50))
         dy += bob * math.sin(phase + 0.5)
+
+        upper, lower = edge_weight(u, v)
 
         # the tail still contributes, but as a trailing rudder
         tail = smoothstep(0.70, 1.0, u)
         dy += tail_amp * tail * math.sin(tail_beat * phase + 0.4)
 
         if pectoral_amp:
-            fan = (smoothstep(u0, u0 + 0.06, u) * (1.0 - smoothstep(u1 - 0.06, u1, u))
-                   * smoothstep(v0, v0 + 0.05, v) * (1.0 - smoothstep(v1 - 0.05, v1, v)))
+            # pectorals sit low on the flank, just behind the head
+            span = smoothstep(pu0, pu0 + 0.07, u) * (1.0 - smoothstep(pu1 - 0.07, pu1, u))
+            fan = span * lower
             dy += pectoral_amp * fan * math.sin(pectoral_beat * phase)
             dx += pectoral_amp * 0.6 * fan * math.sin(pectoral_beat * phase + 1.5)
 
         if median_amp:
-            # dorsal above, anal below, travelling tail-ward and in antiphase
-            dorsal = (1.0 - smoothstep(dorsal_v - 0.10, dorsal_v, v)) * smoothstep(0.20, 0.35, u)
-            anal = smoothstep(anal_v, anal_v + 0.10, v) * smoothstep(0.25, 0.40, u)
-            dy += median_amp * dorsal * math.sin(median_beat * phase + u * 6.0)
-            dy += median_amp * anal * math.sin(median_beat * phase + u * 6.0 + math.pi)
+            # dorsal above and anal below, travelling tail-ward in antiphase
+            body = smoothstep(0.20, 0.36, u)
+            dy += median_amp * upper * body * math.sin(median_beat * phase + u * 6.0)
+            dy += median_amp * lower * body * math.sin(median_beat * phase + u * 6.0 + math.pi)
 
         return dx, dy
 
@@ -344,16 +392,18 @@ PROFILES = {
                                        beat=1, swing=2.0, pivot_u=0.22, bob=1.4)),
     "subcarangiform": (frame_bcf, dict(amplitude=7.5, envelope=1.9, waves=1.15,
                                        beat=2, swing=2.2, pivot_u=0.26, bob=1.6)),
-    "anguilliform":   (frame_bcf, dict(amplitude=10.0, envelope=1.0, waves=1.75,
+    "anguilliform":   (frame_bcf, dict(amplitude=7.5, envelope=1.0, waves=1.75,
                                        beat=1, swing=1.0, pivot_u=0.38, bob=1.2)),
-    "slow_cruise":    (frame_bcf, dict(amplitude=5.0, envelope=3.0, waves=0.6,
-                                       beat=1, swing=1.2, pivot_u=0.18, bob=2.4)),
+    # A uniform bob applies equally to head and tail, so keep it small here or
+    # it drowns out the tail beat on these big slow fish.
+    "slow_cruise":    (frame_bcf, dict(amplitude=7.0, envelope=2.8, waves=0.6,
+                                       beat=1, swing=1.3, pivot_u=0.16, bob=1.0)),
 
     # --- median and paired fins: body stiff, fins doing the work ---
     "labriform":      (frame_mpf, dict(pectoral_amp=4.2, pectoral_beat=3,
                                        median_amp=0.0, tail_amp=3.2, swing=1.5, bob=3.0)),
-    "balistiform":    (frame_mpf, dict(pectoral_amp=1.2, pectoral_beat=2,
-                                       median_amp=4.6, median_beat=2,
+    "balistiform":    (frame_mpf, dict(pectoral_amp=1.0, pectoral_beat=2,
+                                       median_amp=5.0, median_beat=2, margin=0.26,
                                        tail_amp=2.2, swing=1.1, bob=2.6)),
 
     # --- one-off shapes that none of the above describe ---
@@ -362,6 +412,11 @@ PROFILES = {
     "shrimp": (frame_shrimp, {}),
     "sway":   (frame_sway, {}),
 }
+
+# Artwork that arrived facing right. The app assumes fish face left and mirrors
+# them for rightward travel, so these are flipped before framing - otherwise the
+# tail wave lands on the head and they swim backwards in the tank.
+MIRROR = {"cherry_shrimp", "blue_hippo_tang"}
 
 # Anything unlisted falls back to DEFAULT_PROFILE.
 DEFAULT_PROFILE = "carangiform"
@@ -446,6 +501,8 @@ def main():
             continue
 
         source = Image.open(source_path).convert("RGBA")
+        if fish_id in MIRROR:
+            source = source.transpose(Image.FLIP_LEFT_RIGHT)
 
         # Hand-drawn sheets stay untouched
         if source_path == sheet_path and is_grid(source):
