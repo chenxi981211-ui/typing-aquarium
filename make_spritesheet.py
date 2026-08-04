@@ -37,6 +37,7 @@ STILLS = os.path.join(ASSETS, "stills")
 MOTION = {
     "betta_fish": "veil",
     "cherry_shrimp": "shrimp",
+    "pufferfish": "rigid",
     "seahorse": "sway",
 }
 
@@ -183,18 +184,62 @@ def frame_veil(base, phase, body_line=0.42, fin_start=0.10, caudal_start=0.55):
         dy += 3.0 * math.sin(phase + 0.6)
         dx += 1.6 * math.sin(phase * 2 + 0.3)
 
-        # fins add a trailing ripple on top of the rigid swing
+        # Fins ripple on their own account, on top of the rigid swing. Dorsal
+        # and anal are given opposite phase so the fish doesn't look like it is
+        # pulsing symmetrically, which reads as unnatural.
+        above = v < body_line
+        side_phase = 0.0 if above else 1.5
         lag = 1.9 * fin
-        dy += 5.5 * fin * math.sin(phase - lag + u * 3.0)
-        dx += 2.4 * caudal_fin * math.sin(phase - lag + 0.6)
+
+        dy += 9.5 * fin * math.sin(phase - lag + side_phase + u * 3.0)
+        dx += 4.0 * caudal_fin * math.sin(phase - lag + 0.6)
 
         # a finer ripple across the membrane, twice per cycle
-        dy += 2.6 * fin * math.sin(phase * 2 - lag + v * 7.0)
+        dy += 4.0 * fin * math.sin(phase * 2 - lag + side_phase + v * 7.0)
+
+        # the outermost edge curls further than the fin base
+        edge = fin ** 2
+        dy += 4.5 * edge * math.sin(phase * 2 - lag * 1.4 + u * 5.0)
+        dx += 2.5 * edge * math.sin(phase - lag * 1.4 + v * 4.0)
 
         # pectoral fan just behind the head flutters fast and independently
         pectoral = (smoothstep(0.16, 0.24, u) * (1.0 - smoothstep(0.30, 0.40, u))
                     * smoothstep(0.30, 0.42, v) * (1.0 - smoothstep(0.52, 0.62, v)))
-        dy += 2.2 * pectoral * math.sin(phase * 3)
+        dy += 3.0 * pectoral * math.sin(phase * 3)
+
+        return dx, dy
+
+    return mesh_warp(base, displace, cells=32)
+
+
+def frame_rigid_fins(base, phase, pectoral=(0.44, 0.66, 0.34, 0.66), caudal_start=0.76):
+    """Inflated body that cannot bend at all, driven entirely by its fins.
+
+    A pufferfish is the opposite of the betta: there the body was still and the
+    fins flowed, here the body is genuinely rigid - an inflated pufferfish
+    physically cannot flex - and the small pectoral fan whirring at 4x the body
+    rate is what moves it, with the tail trailing as a rudder.
+
+    `pectoral` is (u0, u1, v0, v1) bounding the pectoral fan.
+    """
+    u0, u1, v0, v1 = pectoral
+
+    def displace(u, v):
+        # the whole animal rocks and bobs, but never deforms
+        dx, dy = rigid_offset(u, v, 2.2 * math.sin(phase), pivot=(0.45, 0.50))
+        dy += 3.5 * math.sin(phase)
+        dx += 1.2 * math.sin(phase * 2 + 0.4)
+
+        # tail acts as a rudder rather than a motor - slower, wider sweep
+        caudal = smoothstep(caudal_start, 1.0, u)
+        dy += 7.5 * caudal * math.sin(phase * 2 + 0.5)
+        dx += 2.2 * caudal * math.sin(phase * 2 + 1.3)
+
+        # pectoral fan: small, fast, and the actual source of propulsion
+        fan = (smoothstep(u0, u0 + 0.06, u) * (1.0 - smoothstep(u1 - 0.06, u1, u))
+               * smoothstep(v0, v0 + 0.06, v) * (1.0 - smoothstep(v1 - 0.06, v1, v)))
+        dy += 4.5 * fan * math.sin(phase * 4)
+        dx += 3.0 * fan * math.sin(phase * 4 + 1.6)
 
         return dx, dy
 
@@ -258,7 +303,8 @@ def frame_sway(base, phase, amplitude=9.0, bob=3.5):
 
 
 FRAME_FN = {"swim": frame_swim, "hover": frame_hover, "sway": frame_sway,
-            "shrimp": frame_shrimp, "veil": frame_veil}
+            "shrimp": frame_shrimp, "veil": frame_veil,
+            "rigid": frame_rigid_fins}
 
 
 def build_sheet(base, motion="swim"):
