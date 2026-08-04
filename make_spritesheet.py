@@ -35,6 +35,7 @@ STILLS = os.path.join(ASSETS, "stills")
 
 # Anything not listed swims.
 MOTION = {
+    "betta_fish": "veil",
     "cherry_shrimp": "shrimp",
     "seahorse": "sway",
 }
@@ -138,6 +139,47 @@ def mesh_warp(image, displace, cells=26):
     return image.transform((width, height), Image.MESH, mesh, Image.NEAREST)
 
 
+def frame_veil(base, phase, body_line=0.42, fin_start=0.10, caudal_start=0.55):
+    """Long-finned hoverer: compact body, huge fins that trail behind it.
+
+    A betta barely undulates - the character is entirely in the veil fins, which
+    lag the body and keep rippling after it has stopped. That lag is produced by
+    shifting each point's phase by how far it sits from the body line, so fin
+    edges are furthest behind. A single body wave cannot express this, because
+    the fins have to move on a different phase from the spine they hang off.
+
+    Every frequency multiplier is a whole number, so the cycle closes seamlessly
+    at frame 16.
+    """
+    def displace(u, v):
+        # how far from the body's centre line, and how far into the tail fan
+        vertical_fin = smoothstep(fin_start, 0.42, abs(v - body_line))
+        caudal_fin = smoothstep(caudal_start, 0.95, u)
+        fin = max(vertical_fin, caudal_fin)
+
+        # body: hovering, with only a slight wave towards the tail
+        dy = 2.4 * math.sin(phase)
+        dy += 1.6 * math.sin(phase + 0.5) * smoothstep(0.15, 0.7, u)
+        dx = 1.2 * math.sin(phase * 2 + 0.3)
+
+        # fins trail: the further out, the later the phase arrives
+        lag = 1.9 * fin
+        dy += 10.5 * fin * math.sin(phase - lag + u * 3.0)
+        dx += 4.2 * caudal_fin * math.sin(phase - lag + 0.6)
+
+        # a finer ripple across the membrane, twice per cycle
+        dy += 3.4 * fin * math.sin(phase * 2 - lag + v * 7.0)
+
+        # pectoral fan just behind the head flutters fast and independently
+        pectoral = (smoothstep(0.16, 0.24, u) * (1.0 - smoothstep(0.30, 0.40, u))
+                    * smoothstep(0.30, 0.42, v) * (1.0 - smoothstep(0.52, 0.62, v)))
+        dy += 2.2 * pectoral * math.sin(phase * 3)
+
+        return dx, dy
+
+    return mesh_warp(base, displace, cells=32)
+
+
 def frame_shrimp(base, phase):
     """Cherry shrimp: rigid shell, beating swimmerets, flicking antennae.
 
@@ -195,7 +237,7 @@ def frame_sway(base, phase, amplitude=9.0, bob=3.5):
 
 
 FRAME_FN = {"swim": frame_swim, "hover": frame_hover, "sway": frame_sway,
-            "shrimp": frame_shrimp}
+            "shrimp": frame_shrimp, "veil": frame_veil}
 
 
 def build_sheet(base, motion="swim"):
