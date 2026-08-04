@@ -12,10 +12,11 @@ Sheets that already contain a 4x4 grid are detected by their transparent
 gutters and left alone. Size is not a reliable test: pictus_catfish arrived as a
 1024x1024 *still*, which the app would happily have sliced into 16 fragments.
 
-Motion styles, because not everything in a tank swims like a fish:
-  swim   travelling wave down the body, weighted to the tail (default)
-  hover  body holds its shape and sculls - shrimp and other crustaceans
-  sway   upright body, curled tail sways side to side - seahorses
+Each fish is assigned a swimming mode based on how the animal actually moves:
+thunniform and carangiform for rigid-bodied cruisers, subcarangiform and
+anguilliform for fish that undulate, labriform and balistiform for reef fish
+that hold the body still and row with their fins, plus one-off profiles for the
+betta, pufferfish, shrimp and seahorse. See PROFILES.
 """
 
 import argparse
@@ -32,15 +33,6 @@ FRAMES = GRID * GRID
 
 ASSETS = "assets"
 STILLS = os.path.join(ASSETS, "stills")
-
-# Anything not listed swims.
-MOTION = {
-    "betta_fish": "veil",
-    "cherry_shrimp": "shrimp",
-    "pufferfish": "rigid",
-    "seahorse": "sway",
-}
-
 
 # ===== analysis ===========================================================
 
@@ -98,18 +90,6 @@ def fit(image, size=FRAME):
 
 
 # ===== motion =============================================================
-
-def frame_swim(base, phase, amplitude=9.0, waves=1.3):
-    """Travelling wave along the body. The art faces left, so the tail is on the
-    right - displacement grows towards it while the head stays steady."""
-    width, height = base.size
-    out = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    for x in range(width):
-        t = x / max(1, width - 1)
-        offset = amplitude * (t ** 2) * math.sin(phase + t * waves * 2 * math.pi)
-        out.paste(base.crop((x, 0, x + 1, height)), (x, int(round(offset))))
-    return out
-
 
 def smoothstep(edge0, edge1, x):
     t = min(1.0, max(0.0, (x - edge0) / (edge1 - edge0)))
@@ -277,16 +257,66 @@ def frame_shrimp(base, phase):
     return mesh_warp(base, displace)
 
 
-def frame_hover(base, phase, amplitude=6.0):
-    """Shrimp hold their shape and scull, so the whole body bobs and tilts
-    instead of undulating."""
-    width, height = base.size
-    out = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    dy = amplitude * math.sin(phase)
-    dx = amplitude * 0.5 * math.sin(phase * 2 + 0.6)
-    body = base.rotate(2.2 * math.sin(phase + 0.4), resample=Image.BICUBIC, expand=False)
-    out.paste(body, (int(round(dx)), int(round(dy))))
-    return out
+def frame_bcf(base, phase, amplitude=9.0, envelope=2.0, waves=1.1, beat=1,
+              swing=2.0, pivot_u=0.24, bob=1.6):
+    """Body-and-caudal-fin swimming, the mode most fish use.
+
+    `envelope` is the whole story. It controls how far forward the wave reaches:
+    1.0 undulates end to end like an eel, 4.0 confines everything to the tail
+    like a tuna whose body is effectively a rigid spear. Between those two sit
+    most reef fish.
+
+    A rigid swing is applied underneath so the fish also moves as a solid body
+    rather than only rippling in place.
+    """
+    def displace(u, v):
+        dx, dy = rigid_offset(u, v, swing * math.sin(beat * phase), pivot=(pivot_u, 0.5))
+        dy += bob * math.sin(beat * phase + 0.9)
+        dy += amplitude * (u ** envelope) * math.sin(beat * phase + u * waves * 2 * math.pi)
+        return dx, dy
+
+    return mesh_warp(base, displace, cells=28)
+
+
+def frame_mpf(base, phase, swing=1.5, bob=2.8, tail_amp=3.5, tail_beat=1,
+              pectoral=(0.28, 0.52, 0.44, 0.74), pectoral_amp=3.6, pectoral_beat=3,
+              median_amp=0.0, median_beat=2, dorsal_v=0.30, anal_v=0.70):
+    """Median- and paired-fin swimming: the body stays stiff, fins do the work.
+
+    Wrasses, parrotfish, tangs and angelfish row with their pectorals and hold
+    the body almost straight; triggerfish instead ripple the dorsal and anal
+    fins. Both are expressed here - `pectoral_amp` for the rowers, `median_amp`
+    for the ripplers - because in both cases the body itself barely bends.
+
+    Fin regions are approximate rectangles in normalised coordinates; without a
+    per-fish mask that is as precise as this can honestly get.
+    """
+    u0, u1, v0, v1 = pectoral
+
+    def displace(u, v):
+        dx, dy = rigid_offset(u, v, swing * math.sin(phase), pivot=(0.30, 0.50))
+        dy += bob * math.sin(phase + 0.5)
+
+        # the tail still contributes, but as a trailing rudder
+        tail = smoothstep(0.70, 1.0, u)
+        dy += tail_amp * tail * math.sin(tail_beat * phase + 0.4)
+
+        if pectoral_amp:
+            fan = (smoothstep(u0, u0 + 0.06, u) * (1.0 - smoothstep(u1 - 0.06, u1, u))
+                   * smoothstep(v0, v0 + 0.05, v) * (1.0 - smoothstep(v1 - 0.05, v1, v)))
+            dy += pectoral_amp * fan * math.sin(pectoral_beat * phase)
+            dx += pectoral_amp * 0.6 * fan * math.sin(pectoral_beat * phase + 1.5)
+
+        if median_amp:
+            # dorsal above, anal below, travelling tail-ward and in antiphase
+            dorsal = (1.0 - smoothstep(dorsal_v - 0.10, dorsal_v, v)) * smoothstep(0.20, 0.35, u)
+            anal = smoothstep(anal_v, anal_v + 0.10, v) * smoothstep(0.25, 0.40, u)
+            dy += median_amp * dorsal * math.sin(median_beat * phase + u * 6.0)
+            dy += median_amp * anal * math.sin(median_beat * phase + u * 6.0 + math.pi)
+
+        return dx, dy
+
+    return mesh_warp(base, displace, cells=30)
 
 
 def frame_sway(base, phase, amplitude=9.0, bob=3.5):
@@ -302,16 +332,89 @@ def frame_sway(base, phase, amplitude=9.0, bob=3.5):
     return out
 
 
-FRAME_FN = {"swim": frame_swim, "hover": frame_hover, "sway": frame_sway,
-            "shrimp": frame_shrimp, "veil": frame_veil,
-            "rigid": frame_rigid_fins}
+# Each profile is a frame function plus its parameters. Assignments below follow
+# how these animals actually swim - the classification is real biomechanics, not
+# invention - though at ~64px in the tank the coarse groups read far more
+# clearly than the fine distinctions between them.
+PROFILES = {
+    # --- body and caudal fin: the wave reaches progressively further forward ---
+    "thunniform":     (frame_bcf, dict(amplitude=6.5, envelope=4.2, waves=0.55,
+                                       beat=1, swing=1.5, pivot_u=0.16, bob=1.0)),
+    "carangiform":    (frame_bcf, dict(amplitude=9.0, envelope=2.6, waves=0.95,
+                                       beat=1, swing=2.0, pivot_u=0.22, bob=1.4)),
+    "subcarangiform": (frame_bcf, dict(amplitude=7.5, envelope=1.9, waves=1.15,
+                                       beat=2, swing=2.2, pivot_u=0.26, bob=1.6)),
+    "anguilliform":   (frame_bcf, dict(amplitude=10.0, envelope=1.0, waves=1.75,
+                                       beat=1, swing=1.0, pivot_u=0.38, bob=1.2)),
+    "slow_cruise":    (frame_bcf, dict(amplitude=5.0, envelope=3.0, waves=0.6,
+                                       beat=1, swing=1.2, pivot_u=0.18, bob=2.4)),
+
+    # --- median and paired fins: body stiff, fins doing the work ---
+    "labriform":      (frame_mpf, dict(pectoral_amp=4.2, pectoral_beat=3,
+                                       median_amp=0.0, tail_amp=3.2, swing=1.5, bob=3.0)),
+    "balistiform":    (frame_mpf, dict(pectoral_amp=1.2, pectoral_beat=2,
+                                       median_amp=4.6, median_beat=2,
+                                       tail_amp=2.2, swing=1.1, bob=2.6)),
+
+    # --- one-off shapes that none of the above describe ---
+    "veil":   (frame_veil, {}),
+    "rigid":  (frame_rigid_fins, {}),
+    "shrimp": (frame_shrimp, {}),
+    "sway":   (frame_sway, {}),
+}
+
+# Anything unlisted falls back to DEFAULT_PROFILE.
+DEFAULT_PROFILE = "carangiform"
+
+MOTION = {
+    # rigid-bodied speed: only the tail moves
+    "tuna": "thunniform",
+    "swordfish": "thunniform",
+    "lost_shark": "thunniform",
+
+    # large and unhurried
+    "mega_mouth_shark": "slow_cruise",
+    "coelacanth": "slow_cruise",
+    "opah": "slow_cruise",
+
+    # steady cruisers, wave over the rear third
+    "sardine": "carangiform",
+    "squirrelfish": "carangiform",
+
+    # small and quick, wave over the rear half, twice per cycle
+    "devil_pupfish": "subcarangiform",
+    "florida_flag_fish": "subcarangiform",
+    "long_finned_zebra_dania": "subcarangiform",
+    "pictus_catfish": "subcarangiform",
+
+    # juvenile sweetlips genuinely undulate end to end
+    "ribboned_sweetlips": "anguilliform",
+
+    # reef fish that row with their pectorals and hold the body straight
+    "parrotfish": "labriform",
+    "green_bird_wrasse": "labriform",
+    "blue_hippo_tang": "labriform",
+    "longnose_butterfly_fish": "labriform",
+    "peppermint_angelfish": "labriform",
+    "royal_gramma": "labriform",
+    "coral_grouper": "labriform",
+
+    # triggerfish ripple the dorsal and anal fins instead
+    "picasso_triggerfish": "balistiform",
+
+    # shapes of their own
+    "betta_fish": "veil",
+    "pufferfish": "rigid",
+    "cherry_shrimp": "shrimp",
+    "seahorse": "sway",
+}
 
 
-def build_sheet(base, motion="swim"):
-    make_frame = FRAME_FN[motion]
+def build_sheet(base, profile=DEFAULT_PROFILE):
+    make_frame, options = PROFILES[profile]
     sheet = Image.new("RGBA", (SHEET, SHEET), (0, 0, 0, 0))
     for i in range(FRAMES):
-        cell = make_frame(base, 2 * math.pi * i / FRAMES)
+        cell = make_frame(base, 2 * math.pi * i / FRAMES, **options)
         sheet.paste(cell, ((i % GRID) * FRAME, (i // GRID) * FRAME))
     return sheet
 
@@ -349,7 +452,7 @@ def main():
             already.append(fish_id)
             continue
 
-        motion = MOTION.get(fish_id, "swim")
+        motion = MOTION.get(fish_id, DEFAULT_PROFILE)
         base = fit(trim(source))
         sheet = build_sheet(base, motion)
 
