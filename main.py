@@ -10,6 +10,9 @@ from ui_aquarium import AquariumWidget
 from logger import logger
 from sound_manager import sounds
 
+# Kept in the tank when the day has not produced anything yet.
+STARTER_FISH = "guppy"
+
 
 class AppBridge(QObject):
     stats_updated = pyqtSignal(dict, float)
@@ -30,21 +33,28 @@ def main():
         # Sounds need QApplication to exist before they can be built
         sounds.load(time_manager)
 
-        # Create and show aquarium - Prioritize Favorites!
+        # The tank shows what today has earned, not the whole collection - the
+        # inventory is the permanent record. Starting full of previously caught
+        # fish made the day's typing feel like it changed nothing.
         owned = time_manager.user_data.get("owned_fish", [])
         favorites = time_manager.user_data.get("favorite_fish", [])
 
         initial_fish = []
 
-        # 1. Add favorites first (ensuring we actually own them)
+        # Favourites are a deliberate pin - the user asked for those to stay.
         for f in favorites:
             if f in owned and f not in initial_fish:
                 initial_fish.append(f)
 
-        # 2. Pad with other owned fish up to our target tank capacity (e.g., 12)
-        for f in owned:
-            if f not in initial_fish and len(initial_fish) < 12:
+        # Then whatever today's typing has actually earned.
+        for f in time_manager.caught_today:
+            if len(initial_fish) < 12:
                 initial_fish.append(f)
+
+        # An empty tank reads as broken rather than as a fresh start, so one
+        # fish keeps it alive until the day's first catch arrives.
+        if not initial_fish:
+            initial_fish = [STARTER_FISH]
 
         aquarium = AquariumWidget(initial_fish, time_manager)
         aquarium.show()

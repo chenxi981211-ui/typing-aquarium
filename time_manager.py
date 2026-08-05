@@ -15,14 +15,19 @@ DAY_START_HOUR = 2
 SESSION_GAP = 120.0
 
 # Gaps up to this count as still typing, for the average-speed measure. Long
-# enough to cover thinking mid-sentence, short enough to exclude real breaks.
-TYPING_GAP = 5.0
+# enough to cover a pause mid-sentence, short enough that thinking time and
+# breaks are excluded - the figure is speed while typing, not output per hour.
+TYPING_GAP = 3.0
 
 DEFAULT_SETTINGS = {
     "tank_background": "aquarium_background.png",
     "notify_new_fish": True,
     "notify_daily_reminder": False,
     "master_volume": 70,
+    # Off by default - unrequested audio from a background app is the fastest
+    # way to get it quit.
+    "music_enabled": False,
+    "music_volume": 35,
     "sound_notification": True,
     "sound_effects": True,
 }
@@ -36,6 +41,9 @@ DAILY_STATS = {
     "wpm_sample_total": 0,
     "wpm_sample_count": 0,
     "typing_seconds_today": 0.0,
+    # The tank shows what today's typing has earned; the inventory keeps the
+    # permanent record. This is the list the tank is built from.
+    "caught_today": [],
 }
 
 
@@ -149,7 +157,8 @@ class UnlockManager:
 
     def _reset_daily_stats(self, data, current_logical_date):
         for key, value in DAILY_STATS.items():
-            data[key] = value
+            # copy, or every day would share one list
+            data[key] = list(value) if isinstance(value, list) else value
         data["hourly_activity"] = {}
         data["last_saved_date"] = current_logical_date
 
@@ -347,6 +356,7 @@ class UnlockManager:
             self.user_data["discovery_dates"][selected_fish] = datetime.now().strftime("%Y-%m-%d")
 
         self.user_data["owned_fish"].append(selected_fish)
+        self.user_data.setdefault("caught_today", []).append(selected_fish)
         self.save_state()
         self.reset_spawn_pool()
         return selected_fish
@@ -376,6 +386,10 @@ class UnlockManager:
         return self.user_data.get("highest_wpm_today", 0)
 
     @property
+    def caught_today(self):
+        return self.user_data.get("caught_today", [])
+
+    @property
     def total_chars_all_time(self):
         return self.user_data.get("total_chars_all_time", 0)
 
@@ -399,16 +413,11 @@ class UnlockManager:
         Dividing words by typing time instead ignores the gaps entirely.
         """
         typing_seconds = self.user_data.get("typing_seconds_today", 0.0)
-        if typing_seconds >= 60:
-            words = self.user_data.get("total_chars_today", 0) / 5.0
-            return int(words / (typing_seconds / 60.0))
+        if typing_seconds < 20:
+            return 0        # too little to average meaningfully yet
 
-        # Not enough of the new measure yet - fall back to the sampled mean so
-        # the card is not blank for the rest of today.
-        samples = self.user_data.get("wpm_sample_count", 0)
-        if not samples:
-            return 0
-        return int(self.user_data.get("wpm_sample_total", 0) / samples)
+        words = self.user_data.get("total_chars_today", 0) / 5.0
+        return int(words / (typing_seconds / 60.0))
 
     def get_hourly_activity(self):
         """Chars typed today per hour, in logical-day order.
@@ -489,6 +498,7 @@ class UnlockManager:
         self.user_data["viewed_fish"] = []
         self.user_data["favorite_fish"] = []
         self.user_data["discovery_dates"] = {}
+        self.user_data["caught_today"] = []
         self.current_session_seconds = 0.0
         self.reset_spawn_pool()
         self.save_state()

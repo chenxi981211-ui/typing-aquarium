@@ -265,6 +265,14 @@ class SettingsPage(QWidget):
         layout.addWidget(self._toggle_row(
             "Daily Reminder", "Reminder to log your typing every day", "notify_daily_reminder"))
 
+        # --- Music ---
+        layout.addWidget(self._section_label("Music"))
+        layout.addWidget(self._toggle_row(
+            "Ambient Track", "A calm loop while you type", "music_enabled",
+            on_change=self._music_changed))
+        layout.addWidget(self._volume_row("Music Volume", "music_volume",
+                                          on_change=self._music_changed))
+
         # --- Sound ---
         layout.addWidget(self._section_label("Sound"))
         layout.addWidget(self._volume_row())
@@ -287,30 +295,41 @@ class SettingsPage(QWidget):
         label.setStyleSheet(aero.label_css(13, aero.TEXT, 700))
         return label
 
-    def _toggle_row(self, title, subtitle, setting_key):
+    def _toggle_row(self, title, subtitle, setting_key, on_change=None):
+        def changed(value, key=setting_key):
+            self.time_manager.set_setting(key, value)
+            if on_change:
+                on_change()
+
         toggle = ToggleSwitch(
             checked=bool(self.time_manager.get_setting(setting_key)),
-            on_toggle=lambda value, k=setting_key: self.time_manager.set_setting(k, value))
+            on_toggle=changed)
         return SettingRow(title, subtitle, toggle)
 
-    def _volume_row(self):
+    def _music_changed(self):
+        """Apply music settings immediately - waiting for a restart to hear a
+        volume change makes the slider feel broken."""
+        sounds.refresh_music()
+
+    def _volume_row(self, title="Master Volume", setting_key="master_volume",
+                    on_change=None):
         card = aero.LiquidPanel(radius=16, tint=aero.PANEL_TINT, refract=1.3, thickness=5)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(8)
 
         top = QHBoxLayout()
-        label = QLabel("Master Volume")
+        label = QLabel(title)
         label.setStyleSheet(aero.label_css(12, aero.TEXT, 600))
-        self.volume_value = QLabel(f"{int(self.time_manager.get_setting('master_volume'))}%")
-        self.volume_value.setStyleSheet(aero.label_css(12, aero.AQUA, 700))
+        value_label = QLabel(f"{int(self.time_manager.get_setting(setting_key))}%")
+        value_label.setStyleSheet(aero.label_css(12, aero.AQUA, 700))
         top.addWidget(label)
         top.addStretch()
-        top.addWidget(self.volume_value)
+        top.addWidget(value_label)
 
         slider = QSlider(Qt.Orientation.Horizontal)
         slider.setRange(0, 100)
-        slider.setValue(int(self.time_manager.get_setting("master_volume")))
+        slider.setValue(int(self.time_manager.get_setting(setting_key)))
         slider.setStyleSheet(f"""
             QSlider::groove:horizontal {{
                 height: 5px; background: rgba(4, 30, 58, 0.55); border-radius: 3px;
@@ -326,15 +345,19 @@ class SettingsPage(QWidget):
                 margin: -6px 0; border-radius: 8px;
             }}
         """)
-        slider.valueChanged.connect(self._on_volume_changed)
+        def volume_changed(value):
+            value_label.setText(f"{value}%")
+            self.time_manager.set_setting(setting_key, value)
+            if on_change:
+                on_change()
+            elif setting_key == "master_volume":
+                sounds.refresh_music()   # master scales the music too
+
+        slider.valueChanged.connect(volume_changed)
 
         layout.addLayout(top)
         layout.addWidget(slider)
         return card
-
-    def _on_volume_changed(self, value):
-        self.volume_value.setText(f"{value}%")
-        self.time_manager.set_setting("master_volume", value)
 
     def _reset_row(self):
         # The design draws this as a toggle, but it is a one-shot destructive

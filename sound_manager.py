@@ -3,9 +3,10 @@
 import os
 
 from PyQt6.QtCore import QUrl
-from PyQt6.QtMultimedia import QSoundEffect
+from PyQt6.QtMultimedia import QSoundEffect, QMediaPlayer, QAudioOutput
 
 SOUND_DIR = "assets/sounds"
+MUSIC_FILE = "ambient.wav"
 
 # QSoundEffect only decodes PCM WAV - MP3 sources must be converted first:
 #   afconvert -f WAVE -d LEI16@44100 -c 1 input.mp3 output.wav
@@ -31,6 +32,8 @@ class SoundManager:
     def __init__(self):
         self.effects = {}
         self.time_manager = None
+        self.music = None
+        self._music_output = None
 
     def load(self, time_manager):
         """Preload the effects. Must run after QApplication exists.
@@ -53,6 +56,51 @@ class SoundManager:
 
         if self.effects:
             print(f"🔊 Loaded sounds: {', '.join(sorted(self.effects))}")
+
+        self._load_music()
+        self.refresh_music()
+
+    def _load_music(self):
+        """Ambient bed on an endless loop, on its own player and output.
+
+        QSoundEffect is for short one-shots; a 40-second bed belongs on
+        QMediaPlayer, and giving it a separate audio output means music volume
+        can sit low without dragging the splash down with it.
+        """
+        path = os.path.join(SOUND_DIR, MUSIC_FILE)
+        if not os.path.exists(path):
+            print(f"🔇 No ambient track at {path}")
+            return
+
+        self._music_output = QAudioOutput()
+        self.music = QMediaPlayer()
+        self.music.setAudioOutput(self._music_output)
+        self.music.setSource(QUrl.fromLocalFile(os.path.abspath(path)))
+        self.music.setLoops(QMediaPlayer.Loops.Infinite)
+
+    def _music_volume(self):
+        if not self.time_manager:
+            return 0.0
+        level = self.time_manager.get_setting("music_volume") or 0
+        master = self.time_manager.get_setting("master_volume") or 0
+        return max(0.0, min(1.0, (level / 100.0) * (master / 100.0)))
+
+    def refresh_music(self):
+        """Start, stop or re-level the bed to match the current settings."""
+        if self.music is None or not self.time_manager:
+            return
+
+        wanted = bool(self.time_manager.get_setting("music_enabled"))
+        volume = self._music_volume()
+
+        if self._music_output:
+            self._music_output.setVolume(volume)
+
+        if wanted and volume > 0:
+            if self.music.playbackState() != QMediaPlayer.PlaybackState.PlayingState:
+                self.music.play()
+        else:
+            self.music.pause()
 
     def _volume(self):
         if not self.time_manager:
