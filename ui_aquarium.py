@@ -709,6 +709,9 @@ class AquariumWidget(QWidget):
 
         fish_label.show()
         fish_label.raise_()
+        # Keep the counter above the fish - a sprite drifting across it was
+        # covering the number.
+        self.fish_count_widget.raise_()
         self.active_fish_sprites.append(swimming_fish)
 
         self.current_fish_count = len(self.active_fish_sprites)

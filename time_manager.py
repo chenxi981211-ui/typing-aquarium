@@ -14,6 +14,10 @@ DAY_START_HOUR = 2
 # A gap longer than this ends the current sitting at the keyboard.
 SESSION_GAP = 120.0
 
+# Gaps up to this count as still typing, for the average-speed measure. Long
+# enough to cover thinking mid-sentence, short enough to exclude real breaks.
+TYPING_GAP = 5.0
+
 DEFAULT_SETTINGS = {
     "tank_background": "aquarium_background.png",
     "notify_new_fish": True,
@@ -31,6 +35,7 @@ DAILY_STATS = {
     "longest_focus_today": 0.0,
     "wpm_sample_total": 0,
     "wpm_sample_count": 0,
+    "typing_seconds_today": 0.0,
 }
 
 
@@ -206,6 +211,11 @@ class UnlockManager:
             if elapsed <= SESSION_GAP:
                 self.user_data["total_active_time"] += elapsed
 
+            # Time spent actually typing, for the average-speed figure.
+            if elapsed <= TYPING_GAP:
+                self.user_data["typing_seconds_today"] = (
+                    self.user_data.get("typing_seconds_today", 0.0) + elapsed)
+
             # The spawn timer keeps the strict rule - it paces fish unlocks and
             # loosening it here would make them arrive far too quickly.
             if elapsed <= 1.0:
@@ -379,6 +389,22 @@ class UnlockManager:
 
     @property
     def avg_wpm_today(self):
+        """Average speed over the time actually spent typing.
+
+        Averaging the live WPM readings understated this badly. That reading
+        comes from a 10-second rolling window, so every pause produces a run of
+        small non-zero samples as the window drains, and those drag the mean
+        down - the figure ended up nearer a third of a realistic pace.
+
+        Dividing words by typing time instead ignores the gaps entirely.
+        """
+        typing_seconds = self.user_data.get("typing_seconds_today", 0.0)
+        if typing_seconds >= 60:
+            words = self.user_data.get("total_chars_today", 0) / 5.0
+            return int(words / (typing_seconds / 60.0))
+
+        # Not enough of the new measure yet - fall back to the sampled mean so
+        # the card is not blank for the rest of today.
         samples = self.user_data.get("wpm_sample_count", 0)
         if not samples:
             return 0
