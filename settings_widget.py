@@ -263,8 +263,6 @@ class SettingsPage(QWidget):
         layout.addWidget(self._toggle_row(
             "New Fish Unlocked", "Alert when you earn a new fish", "notify_new_fish"))
         layout.addWidget(self._toggle_row(
-            "Milestones", "Character count achievements", "notify_milestones"))
-        layout.addWidget(self._toggle_row(
             "Daily Reminder", "Reminder to log your typing every day", "notify_daily_reminder"))
 
         # --- Sound ---

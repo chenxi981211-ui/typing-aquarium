@@ -17,7 +17,6 @@ SESSION_GAP = 120.0
 DEFAULT_SETTINGS = {
     "tank_background": "aquarium_background.png",
     "notify_new_fish": True,
-    "notify_milestones": True,
     "notify_daily_reminder": False,
     "master_volume": 70,
     "sound_notification": True,

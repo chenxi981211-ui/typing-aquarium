@@ -12,14 +12,12 @@ SOUND_DIR = "assets/sounds"
 SOUND_FILES = {
     "click": "click.wav",
     "unlock": "unlock.wav",
-    "milestone": "milestone.wav",
 }
 
 # Every setting that must be on for a sound to play
 REQUIRES = {
     "click": ("sound_effects",),
     "unlock": ("notify_new_fish", "sound_notification"),
-    "milestone": ("notify_milestones", "sound_notification"),
 }
 
 

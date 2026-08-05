@@ -10,9 +10,6 @@ from ui_aquarium import AquariumWidget
 from logger import logger
 from sound_manager import sounds
 
-# Play the milestone sound each time this many characters is crossed
-MILESTONE_STEP = 1000
-
 
 class AppBridge(QObject):
     stats_updated = pyqtSignal(dict, float)
@@ -60,8 +57,6 @@ def main():
         # Store live WPM for display
         current_live_wpm = 0
 
-        # Which 1000-character block we were in last time we checked
-        last_milestone = time_manager.total_chars_today // MILESTONE_STEP
 
         def update_ui():
             """Update UI with current stats"""
@@ -75,7 +70,7 @@ def main():
 
         def handle_keystroke(live_typing_stats):
             """Now safely runs strictly on the main UI thread"""
-            nonlocal current_live_wpm, last_milestone
+            nonlocal current_live_wpm
             current_live_wpm = live_typing_stats.get("wpm", 0)
 
             # Update time_manager
@@ -88,13 +83,6 @@ def main():
                 if spawn_result not in ["coin_flip_failed", "pool_empty"]:
                     bridge.fish_spawned.emit(spawn_result)
                     sounds.play("unlock")
-
-            # Character-count achievements
-            current_milestone = time_manager.total_chars_today // MILESTONE_STEP
-            if current_milestone > last_milestone:
-                last_milestone = current_milestone
-                print(f"🏆 Milestone: {current_milestone * MILESTONE_STEP} characters today")
-                sounds.play("milestone")
 
             # Update UI with fresh stats
             update_ui()
