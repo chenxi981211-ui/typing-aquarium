@@ -25,6 +25,13 @@ def format_count(value):
     return f"{value:,}"
 
 
+def _hour_label(hour):
+    """2 -> '2am', 14 -> '2pm', 0 -> '12am'."""
+    suffix = "am" if hour < 12 else "pm"
+    display = hour % 12 or 12
+    return f"{display}{suffix}"
+
+
 def format_duration(seconds):
     """Compact duration for the stat cards: '5hrs', '42min', '30s'."""
     seconds = int(seconds)
@@ -172,38 +179,38 @@ class BarChart(QWidget):
 
 
 class RangeToggle(QWidget):
-    """The 7d / 30d pill pair."""
+    """Week / Month pill pair - calendar periods, not rolling windows."""
 
     def __init__(self, on_change, parent=None):
         super().__init__(parent)
         self.on_change = on_change
-        self.days = 7
+        self.period = "week"
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        self.btn_7 = QPushButton("7d")
-        self.btn_30 = QPushButton("30d")
+        self.btn_week = QPushButton("Week")
+        self.btn_month = QPushButton("Month")
 
-        for btn, days in ((self.btn_7, 7), (self.btn_30, 30)):
-            btn.setFixedSize(46, 26)
+        for btn, period in ((self.btn_week, "week"), (self.btn_month, "month")):
+            btn.setFixedSize(58, 26)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _, d=days: self.select(d))
+            btn.clicked.connect(lambda _, p=period: self.select(p))
             layout.addWidget(btn)
 
         self._restyle()
 
-    def select(self, days):
-        if days == self.days:
+    def select(self, period):
+        if period == self.period:
             return
-        self.days = days
+        self.period = period
         self._restyle()
-        self.on_change(days)
+        self.on_change(period)
 
     def _restyle(self):
-        for btn, days in ((self.btn_7, 7), (self.btn_30, 30)):
-            active = days == self.days
+        for btn, period in ((self.btn_week, "week"), (self.btn_month, "month")):
+            active = period == self.period
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background: {'rgba(86, 212, 201, 0.15)' if active else 'transparent'};
@@ -228,7 +235,7 @@ class StatisticsPage(QWidget):
     def __init__(self, time_manager, parent=None):
         super().__init__(parent)
         self.time_manager = time_manager
-        self.range_days = 7
+        self.period = "week"
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 2, 12, 4)
@@ -238,7 +245,7 @@ class StatisticsPage(QWidget):
 
         self.chars_row = SplitStatRow(("Characters", "Today"), ("All time chars", "Total"), TEAL)
         self.speed_row = SplitStatRow(("Avg speed", "Today"), ("Highest speed", "Total"), PURPLE)
-        self.focus_row = SplitStatRow(("Focus duration", "Today"), ("Longest duration", "Today"), GOLD)
+        self.focus_row = SplitStatRow(("At keyboard", "Today"), ("Longest stretch", "Today"), GOLD)
 
         layout.addWidget(self.chars_row)
         layout.addWidget(self.speed_row)
@@ -283,8 +290,8 @@ class StatisticsPage(QWidget):
         card_layout.addWidget(chart)
         return card
 
-    def _on_range_changed(self, days):
-        self.range_days = days
+    def _on_range_changed(self, period):
+        self.period = period
         self.refresh()
 
     def refresh(self):
@@ -300,17 +307,23 @@ class StatisticsPage(QWidget):
         self.focus_row.left.set_value(format_duration(tm.total_active_time))
         self.focus_row.right.set_value(format_duration(tm.longest_focus_today))
 
-        history = tm.get_daily_history(self.range_days)
-        values = [stats["chars"] for _, stats in history]
+        days = tm.get_calendar_range(self.period)
+        values = [stats["chars"] for _, stats in days]
 
-        if self.range_days == 7:
-            labels = [date.strftime("%a") for date, _ in history]
-            self.daily_chart.set_data(values, labels=labels)
+        if self.period == "week":
+            # Monday through Sunday, always in that order
+            self.daily_chart.set_data(values, labels=[d.strftime("%a") for d in
+                                                      (date for date, _ in days)])
         else:
-            # 30 labels won't fit; mark the ends instead
-            first, last = history[0][0], history[-1][0]
-            self.daily_chart.set_data(
-                values, edge_labels=(first.strftime("%d %b"), "", last.strftime("%d %b")))
+            # A month has too many labels to fit, so mark the ends and the middle
+            first, last = days[0][0], days[-1][0]
+            middle = days[len(days) // 2][0]
+            self.daily_chart.set_data(values, edge_labels=(first.strftime("%-d %b"),
+                                                           middle.strftime("%-d"),
+                                                           last.strftime("%-d %b")))
 
-        self.hourly_chart.set_data(tm.get_hourly_activity(),
-                                   edge_labels=("12am", "12pm", "11pm"))
+        hours = tm.get_hourly_activity()
+        self.hourly_chart.set_data([count for _, count in hours],
+                                   edge_labels=(_hour_label(hours[0][0]),
+                                                _hour_label(hours[12][0]),
+                                                _hour_label(hours[-1][0])))

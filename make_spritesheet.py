@@ -24,6 +24,7 @@ import json
 import math
 import os
 import shutil
+from collections import deque
 
 from PIL import Image
 
@@ -33,6 +34,63 @@ FRAMES = GRID * GRID
 
 ASSETS = "assets"
 STILLS = os.path.join(ASSETS, "stills")
+
+IMPORTS = os.path.join(ASSETS, "imported")
+
+
+# ===== importing sheets made elsewhere ====================================
+
+def has_alpha(image):
+    return image.convert("RGBA").getchannel("A").getextrema()[0] < 255
+
+
+def import_sheet(path, fish_id, grid=4, mirror=None, write=False):
+    """Re-tile a sheet made elsewhere into the 1024x1024 4x4 the app expects.
+
+    Cells are cut on an even division, trimmed to their own content and
+    re-centred, which also absorbs any drift in the source layout.
+    """
+    image = Image.open(path).convert("RGBA")
+
+    if not has_alpha(image):
+        # Refuse rather than guess. A flattened preview bakes the transparency
+        # chequer in as opaque grey, and on this art the sprite's own body is
+        # the identical neutral grey - no colour or pattern test can separate
+        # them, and every attempt punches holes in the fish.
+        raise SystemExit(
+            f"\n{path} has no transparency.\n"
+            "The chequered background is baked in as real pixels, so it cannot be\n"
+            "removed without damaging the sprite - its body is the same grey.\n"
+            "Re-export as a PNG with an alpha channel and run this again.")
+
+    if mirror is None:
+        mirror = fish_id in MIRROR
+    if mirror:
+        image = image.transpose(Image.FLIP_LEFT_RIGHT)
+        print("   mirrored to match the app's left-facing convention")
+
+    width, height = image.size
+    cells = []
+    for row in range(grid):
+        for col in range(grid):
+            # after a mirror the columns run backwards, so read them in reverse
+            c = (grid - 1 - col) if mirror else col
+            box = (round(c * width / grid), round(row * height / grid),
+                   round((c + 1) * width / grid), round((row + 1) * height / grid))
+            cells.append(fit(trim(image.crop(box))))
+
+    sheet = Image.new("RGBA", (SHEET, SHEET), (0, 0, 0, 0))
+    for i, cell in enumerate(cells[:FRAMES]):
+        sheet.paste(cell, ((i % GRID) * FRAME, (i // GRID) * FRAME))
+
+    if write:
+        os.makedirs(IMPORTS, exist_ok=True)
+        archive = os.path.join(IMPORTS, f"{fish_id}.png")
+        if not os.path.exists(archive):
+            shutil.copy2(path, archive)
+        sheet.save(os.path.join(ASSETS, f"{fish_id}_swim.png"))
+    return sheet
+
 
 # ===== analysis ===========================================================
 
@@ -480,9 +538,24 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true", help="write the sheets into assets/")
     parser.add_argument("--only", help="regenerate a single fish id")
+    parser.add_argument("--import", dest="import_path",
+                        help="re-tile a sheet made elsewhere into the app's format")
+    parser.add_argument("--id", help="fish id the imported sheet belongs to")
+    parser.add_argument("--grid", type=int, default=4, help="grid size of the imported sheet")
     args = parser.parse_args()
 
     known = {fish["id"] for fish in json.load(open("fish.JSON"))}
+
+    if args.import_path:
+        if not args.id:
+            parser.error("--import needs --id <fish_id>")
+        if args.id not in known:
+            parser.error(f"{args.id} is not an id in fish.JSON")
+        print(f"importing {args.import_path} as {args.id}")
+        import_sheet(args.import_path, args.id, grid=args.grid, write=args.write)
+        print("WROTE" if args.write else "DRY RUN - rerun with --write")
+        return
+
     if args.write:
         os.makedirs(STILLS, exist_ok=True)
 
@@ -495,6 +568,13 @@ def main():
         sheet_path = os.path.join(ASSETS, f"{fish_id}_swim.png")
         still_path = os.path.join(STILLS, f"{fish_id}.png")
 
+        # A sheet that already holds a grid is authored art - either hand-drawn
+        # or imported - and must never be overwritten by a generated one, even
+        # when a still is still sitting in stills/.
+        if os.path.exists(sheet_path) and is_grid(Image.open(sheet_path).convert("RGBA")):
+            already.append(fish_id)
+            continue
+
         source_path = still_path if os.path.exists(still_path) else sheet_path
         if not os.path.exists(source_path):
             unknown.append(fish_id)
@@ -503,11 +583,6 @@ def main():
         source = Image.open(source_path).convert("RGBA")
         if fish_id in MIRROR:
             source = source.transpose(Image.FLIP_LEFT_RIGHT)
-
-        # Hand-drawn sheets stay untouched
-        if source_path == sheet_path and is_grid(source):
-            already.append(fish_id)
-            continue
 
         motion = MOTION.get(fish_id, DEFAULT_PROFILE)
         base = fit(trim(source))
@@ -526,7 +601,7 @@ def main():
         print(f"{fish_id:26s} {motion:7s} {size}")
 
     if already:
-        print(f"\nalready hand-animated, left alone ({len(already)}):")
+        print(f"\nalready a finished sheet, left alone ({len(already)}):")
         print("  " + ", ".join(already))
     if unknown:
         print(f"\nno artwork found ({len(unknown)}): " + ", ".join(unknown))

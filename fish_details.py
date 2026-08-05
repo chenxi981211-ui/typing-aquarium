@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QSize
 from datetime import datetime
 
 from ui_components import first_frame_pixmap
+from collection_widget import silhouette
 
 
 class FishDetailsWindow(QWidget):
@@ -18,6 +19,8 @@ class FishDetailsWindow(QWidget):
         self.fish_data = fish_data
         self.time_manager = time_manager
         self.fish_id = fish_data["id"]
+        owned = time_manager.user_data.get("owned_fish", []) if time_manager else []
+        self.is_owned = self.fish_id in owned
 
         print(f"🐟 FishDetailsWindow for: {fish_data['name']} (ID: {self.fish_id})")
 
@@ -64,7 +67,7 @@ class FishDetailsWindow(QWidget):
         main_layout.addWidget(top_bar)
 
         # ===== FISH NAME =====
-        name_label = QLabel(fish_data["name"])
+        name_label = QLabel(fish_data["name"] if self.is_owned else "???")
         name_label.setStyleSheet("""
             color: white;
             font-size: 22px;
@@ -76,7 +79,8 @@ class FishDetailsWindow(QWidget):
         main_layout.addWidget(name_label)
 
         # ===== SCIENTIFIC NAME =====
-        scientific_name = fish_data.get("scientific_name", f"{fish_data['name']} sp.")
+        scientific_name = (fish_data.get("scientific_name", f"{fish_data['name']} sp.")
+                           if self.is_owned else "Not yet discovered")
         sci_label = QLabel(scientific_name)
         sci_label.setStyleSheet("""
             color: rgba(255, 255, 255, 0.5);
@@ -96,21 +100,26 @@ class FishDetailsWindow(QWidget):
         self.image_label.setStyleSheet("background: transparent;")
 
         print(f"📷 Loading image for: {self.fish_id}")
-        thumbnail = f"assets/thumbnails/{self.fish_id}.png"
+        # The still is the clean, undistorted artwork; the sheet frame is a
+        # warped animation pose. Prefer the still and fall back only for the
+        # hand-drawn fish, which never had one.
+        still = f"assets/stills/{self.fish_id}.png"
         sprite = f"assets/{self.fish_id}_swim.png"
 
-        if os.path.exists(thumbnail):
-            source = QPixmap(thumbnail)
+        if os.path.exists(still):
+            source = QPixmap(still)
         elif os.path.exists(sprite):
             source = first_frame_pixmap(sprite)
         else:
             source = QPixmap("assets/default_fish.png")
 
-        hero = self._hero_pixmap(source)
-        self.image_label.setPixmap(hero)
-        # Fixed to the sprite's own size - a fixed square would reserve empty
-        # rows that push the rest of the page off the bottom of the window.
-        self.image_label.setFixedSize(hero.width(), hero.height())
+        if not self.is_owned:
+            source = silhouette(source)
+
+        # Every fish gets the same footprint, so the page does not jump around
+        # between a long swordfish and a round pufferfish.
+        self.image_label.setPixmap(self._hero_pixmap(source))
+        self.image_label.setFixedSize(self.HERO_W, self.HERO_H)
         main_layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # ===== RARITY BADGE (matching Collection screen style) =====
@@ -126,14 +135,9 @@ class FishDetailsWindow(QWidget):
             rarity_color = "#F39C12"
 
         # Container with pill shape - matches Collection screen
+        # Just the coloured word - no box, matching the collection cards.
         rarity_container = QFrame()
-        rarity_container.setStyleSheet(f"""
-            QFrame {{
-                background-color: rgba(0, 0, 0, 0.5);
-                border-radius: 12px;
-                padding: 2px 8px;
-            }}
-        """)
+        rarity_container.setStyleSheet("QFrame { background: transparent; border: none; }")
         rarity_container.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
 
         rarity_layout = QHBoxLayout(rarity_container)
@@ -172,7 +176,9 @@ class FishDetailsWindow(QWidget):
         """)
         main_layout.addWidget(fun_fact_label)
 
-        description = fish_data.get("display", {}).get("description", "No description available.")
+        description = (fish_data.get("display", {}).get("description", "No description available.")
+                       if self.is_owned
+                       else "Catch this one to find out what it is.")
         desc_label = QLabel(description)
         desc_label.setStyleSheet("""
             color: rgba(255, 255, 255, 0.85);
@@ -233,7 +239,9 @@ class FishDetailsWindow(QWidget):
 
         # The flavour line sits under the real condition rather than replacing
         # it, which is what used to happen.
-        flavour = self.get_unlock_flavour()
+        # The flavour line is written in the past tense ("joined because...")
+        # so it only makes sense once the fish is actually yours.
+        flavour = self.get_unlock_flavour() if self.is_owned else ""
         if flavour:
             flavour_label = QLabel(flavour)
             flavour_label.setStyleSheet("""

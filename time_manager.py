@@ -1,11 +1,18 @@
 # this is the time_manager.py file
 
+import calendar
 import json
 import os
 import time
 import random
 from datetime import datetime, timedelta
 
+
+# The logical day rolls over at 2am, so "today" runs 2am -> 1am next morning.
+DAY_START_HOUR = 2
+
+# A gap longer than this ends the current sitting at the keyboard.
+SESSION_GAP = 120.0
 
 DEFAULT_SETTINGS = {
     "tank_background": "aquarium_background.png",
@@ -191,10 +198,18 @@ class UnlockManager:
         # Track total active time - ONLY add time when actively typing (gap less than 1 second)
         if self.last_keystroke_time is not None:
             elapsed = current_time - self.last_keystroke_time
-            # Only count time if the gap is very small (actively typing, not thinking)
-            # This prevents counting pauses
-            if elapsed <= 1.0:  # ← Changed from self.grace_period to 1 second
+
+            # Focus duration is how long the user has been at the keyboard, so
+            # short thinking pauses count; only a real break ends the sitting.
+            # Measuring it on a 1-second gap, as before, reported a couple of
+            # minutes for a whole day's work because it was really just adding
+            # up the time between individual keystrokes.
+            if elapsed <= SESSION_GAP:
                 self.user_data["total_active_time"] += elapsed
+
+            # The spawn timer keeps the strict rule - it paces fish unlocks and
+            # loosening it here would make them arrive far too quickly.
+            if elapsed <= 1.0:
                 self._spawn_timer += elapsed
 
         # Track focus time for fish unlocks (30 second grace period - this is fine)
@@ -371,38 +386,60 @@ class UnlockManager:
         return int(self.user_data.get("wpm_sample_total", 0) / samples)
 
     def get_hourly_activity(self):
-        """Chars typed today per hour, as a 24-slot list indexed by hour."""
-        hourly = self.user_data.get("hourly_activity", {})
-        return [hourly.get(str(h), 0) for h in range(24)]
+        """Chars typed today per hour, in logical-day order.
 
-    def get_daily_history(self, days):
-        """The last `days` days as [(date, stats_dict), ...], oldest first.
-
-        Days with no record are included with zeroed stats so the chart keeps an
-        even spacing and today is always the rightmost bar.
+        The day rolls over at 2am, so the buckets that belong to "today" run
+        2am -> 1am. Listing them 0..23 put the small hours at the wrong end of
+        the chart, ahead of a morning that came before them.
         """
+        hourly = self.user_data.get("hourly_activity", {})
+        order = [(DAY_START_HOUR + i) % 24 for i in range(24)]
+        return [(hour, hourly.get(str(hour), 0)) for hour in order]
+
+    def _logical_today(self):
+        """Today under the app's 2am day boundary, as a date."""
+        now = datetime.now()
+        if now.hour < DAY_START_HOUR:
+            now = now - timedelta(days=1)
+        return now.date()
+
+    def get_calendar_range(self, period="week"):
+        """A whole calendar week or month as [(date, stats), ...].
+
+        A rolling "last 7 days" window makes it impossible to compare like for
+        like, so this returns real calendar periods: Monday to Sunday, or the
+        1st to the end of the month. Days that have not happened yet are
+        included with zeros so the week keeps its shape.
+        """
+        today = self._logical_today()
+
+        if period == "week":
+            start = today - timedelta(days=today.weekday())   # Monday
+            length = 7
+        else:
+            start = today.replace(day=1)
+            length = calendar.monthrange(today.year, today.month)[1]
+
         history = self.user_data.get("daily_history", {})
-        today = datetime.now()
-        if today.hour < 2:
-            today = today - timedelta(days=1)
+        live = {
+            "chars": self.total_chars_today,
+            "focus_seconds": int(self.total_active_time),
+            "avg_wpm": self.avg_wpm_today,
+            "highest_wpm": self.highest_wpm_today,
+            "longest_focus": int(self.longest_focus_today),
+        }
+        empty = {"chars": 0, "focus_seconds": 0, "avg_wpm": 0,
+                 "highest_wpm": 0, "longest_focus": 0}
 
         result = []
-        for offset in range(days - 1, -1, -1):
-            date = today - timedelta(days=offset)
-            key = date.strftime("%Y-%m-%d")
-
-            if offset == 0:
-                # Today isn't archived yet, so read it from the live counters
-                stats = {
-                    "chars": self.total_chars_today,
-                    "focus_seconds": int(self.total_active_time),
-                    "avg_wpm": self.avg_wpm_today,
-                    "highest_wpm": self.highest_wpm_today,
-                    "longest_focus": int(self.longest_focus_today),
-                }
+        for offset in range(length):
+            date = start + timedelta(days=offset)
+            if date == today:
+                stats = live            # today is not archived yet
+            elif date > today:
+                stats = empty           # hasn't happened
             else:
-                stats = history.get(key, {"chars": 0, "focus_seconds": 0, "avg_wpm": 0,
-                                          "highest_wpm": 0, "longest_focus": 0})
+                stats = history.get(date.strftime("%Y-%m-%d"), empty)
             result.append((date, stats))
         return result
 

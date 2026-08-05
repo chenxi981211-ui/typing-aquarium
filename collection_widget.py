@@ -162,7 +162,9 @@ class FishCard(aero.LiquidPanel):
         self._scroll_timer = None  # Timer for marquee effect
         self._scroll_offset = 0  # Current scroll position
         self._is_hovering = False  # Track hover state
-        self._full_name = fish_data["name"]  # Full name for scrolling
+        # A locked fish keeps its name hidden - the silhouette is the tease, the
+        # name would give it away.
+        self._full_name = fish_data["name"] if is_owned else "???"
         self._max_chars = 10  # Maximum characters before truncating
 
         self.setFixedSize(110, 130)
@@ -308,17 +310,11 @@ class FishCard(aero.LiquidPanel):
             rarity_color = aero.AMBER
             rarity_rgb = "255, 214, 150"
 
-        # A fully rounded pill in the rarity's own colour, rather than a black
-        # slab - the heavy dark box fought with the glass cards.
+        # Just the coloured word - no box. A boxed badge fought with the glass
+        # card behind it and added a hard corner to an otherwise round layout.
         rarity_container = QFrame()
-        rarity_container.setFixedHeight(18)
-        rarity_container.setStyleSheet(f"""
-            QFrame {{
-                background-color: rgba({rarity_rgb}, 0.20);
-                border: 1px solid rgba({rarity_rgb}, 0.38);
-                border-radius: 9px;
-            }}
-        """)
+        rarity_container.setFixedHeight(16)
+        rarity_container.setStyleSheet("QFrame { background: transparent; border: none; }")
         rarity_container.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
 
         rarity_layout = QHBoxLayout(rarity_container)
