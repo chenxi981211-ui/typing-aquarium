@@ -144,19 +144,19 @@ class AquariumWidget(QWidget):
         right_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(QIcon(aero.contrast_icon("assets/settings_icon.png", 16)))
+        self.settings_btn.setIcon(QIcon(aero.contrast_icon("assets/settings_icon.png", 16, aero.ICON_TINT)))
         self.settings_btn.setIconSize(QSize(18, 18))
         self.settings_btn.setFixedSize(18, 18)
         self.settings_btn.setStyleSheet("background: transparent; border: none;")
 
         self.view_btn = QPushButton()
-        self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/minimal_mode_icon.png", 16)))
+        self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/minimal_mode_icon.png", 16, aero.ICON_TINT)))
         self.view_btn.setIconSize(QSize(18, 18))
         self.view_btn.setFixedSize(18, 18)
         self.view_btn.setStyleSheet("background: transparent; border: none;")
 
         self.pin_btn = QPushButton()
-        self.pin_btn.setIcon(QIcon(aero.contrast_icon("assets/pin_deactivate_button.png", 16)))
+        self.pin_btn.setIcon(QIcon(aero.contrast_icon("assets/pin_deactivate_button.png", 16, aero.ICON_TINT)))
         self.pin_btn.setIconSize(QSize(18, 18))
         self.pin_btn.setFixedSize(18, 18)
         self.pin_btn.setStyleSheet("background: transparent; border: none;")
@@ -243,6 +243,22 @@ class AquariumWidget(QWidget):
         fish_count_layout.addWidget(self.fish_count_icon)
         fish_count_layout.addWidget(self.fish_count_label)
         self.fish_count_widget.raise_()
+
+        # Expand control, sitting opposite the counter so the tank's two
+        # corners balance.
+        self.expand_btn = QPushButton(self.aquarium_container)
+        self.expand_btn.setIcon(QIcon(aero.contrast_icon("assets/large_mode_icon.png", 16,
+                                                         aero.ICON_TINT)))
+        self.expand_btn.setIconSize(QSize(18, 18))
+        self.expand_btn.setGeometry(8, 8, 30, 30)
+        self.expand_btn.setToolTip("Full view")
+        self.expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.expand_btn.setStyleSheet("""
+            QPushButton { background: rgba(6, 30, 58, 0.42); border: none; border-radius: 15px; }
+            QPushButton:hover { background: rgba(10, 48, 88, 0.72); }
+        """)
+        self.expand_btn.clicked.connect(self.open_full_view)
+        self.expand_btn.raise_()
 
         aquarium_layout.addWidget(self.aquarium_container, alignment=Qt.AlignmentFlag.AlignHCenter)
 
@@ -371,7 +387,7 @@ class AquariumWidget(QWidget):
             self.border_widget.setGeometry(0, 0, self.window_width, target_height)
             self.animate_resize(target_rect)
 
-            self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/large_mode_icon.png", 16)))
+            self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/large_mode_icon.png", 16, aero.ICON_TINT)))
             self.large_mode = False
 
         else:
@@ -384,7 +400,7 @@ class AquariumWidget(QWidget):
             self.border_widget.setGeometry(0, 0, self.window_width, self.window_height)
             self.animate_resize(target_rect, on_finish=self.fade_in_widgets)
 
-            self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/minimal_mode_icon.png", 16)))
+            self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/minimal_mode_icon.png", 16, aero.ICON_TINT)))
             self.large_mode = True
 
     def animate_resize(self, target_rect, on_finish=None):
@@ -517,6 +533,27 @@ class AquariumWidget(QWidget):
         if self.height() != target_height:
             self.animate_resize(QRect(self.x(), self.y(), self.window_width, target_height))
             self.border_widget.setGeometry(0, 0, self.window_width, target_height)
+
+    def open_full_view(self):
+        """Open the tank on its own, filling the screen."""
+        sounds.play("click")
+
+        from full_view import FullTankWindow
+        if getattr(self, "full_view", None) is not None and self.full_view.isVisible():
+            self.full_view.raise_()
+            self.full_view.activateWindow()
+            return
+
+        # Held on self so Python does not collect the window the moment this
+        # method returns.
+        self.full_view = FullTankWindow(self.time_manager, self.tank_background, self)
+        swimming = [fish.fish_id for fish in self.active_fish_sprites]
+        if not swimming and self.time_manager:
+            swimming = list(self.time_manager.caught_today) or ["guppy"]
+        self.full_view.stock(swimming)
+        self.full_view.show()
+        self.full_view.raise_()
+        self.full_view.activateWindow()
 
     def glass_backdrop(self):
         """The blurred art every liquid-glass surface refracts."""
@@ -716,6 +753,11 @@ class AquariumWidget(QWidget):
 
         self.current_fish_count = len(self.active_fish_sprites)
         self.fish_count_label.setText(f"{self.current_fish_count} fish")
+
+        # Splash here rather than at the unlock decision, so the sound always
+        # matches a fish that actually appeared - a missing sprite used to play
+        # the splash with nothing to show for it.
+        sounds.play("unlock")
 
         print(f"✅ Fish spawned successfully! Total fish: {self.current_fish_count}")
 

@@ -26,6 +26,10 @@ AMBER = "#FFD696"
 TEXT = "#FFFFFF"
 TEXT_DIM = "rgba(235, 249, 255, 240)"
 
+# Title-bar icons: a pale aqua rather than plain white, so they read as
+# part of the glass instead of sitting on top of it.
+ICON_TINT = QColor(174, 233, 247)
+
 # Numerals get a clean humanist monospace - PT Mono is the closest face macOS
 # ships to Sometype Mono, which the design calls for but isn't installed.
 NUMERIC_FONT = "'PT Mono', 'Andale Mono', 'Courier New', monospace"

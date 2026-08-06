@@ -663,7 +663,10 @@ class CollectionWidget(QWidget):
             elif self.current_filter == "locked" and not is_owned:
                 filtered_fish.append((fish, is_owned, is_new))
 
-        filtered_fish.sort(key=lambda x: x[0].get("rarity", 50), reverse=True)
+        # Collected fish first, then by rarity. Sorting on rarity alone
+        # scattered the ones you own among the locked cards, so the collection
+        # never looked like it was filling up.
+        filtered_fish.sort(key=lambda x: (not x[1], -x[0].get("rarity", 50)))
 
         # owned_fish is a running list that repeats a species each time it is
         # caught again, so it has to be de-duplicated before counting.

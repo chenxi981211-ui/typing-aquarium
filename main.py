@@ -91,8 +91,9 @@ def main():
             if milestone_reached:
                 spawn_result = time_manager.check_ten_minute_milestone()
                 if spawn_result not in ["coin_flip_failed", "pool_empty"]:
+                    # The splash plays inside spawn_fish_sprite, where the fish
+                    # actually appears.
                     bridge.fish_spawned.emit(spawn_result)
-                    sounds.play("unlock")
 
             # Update UI with fresh stats
             update_ui()
