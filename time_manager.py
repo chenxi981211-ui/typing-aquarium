@@ -11,6 +11,10 @@ from datetime import datetime, timedelta
 # The logical day rolls over at 2am, so "today" runs 2am -> 1am next morning.
 DAY_START_HOUR = 2
 
+# How many fish swim at once. The tank is 354x275 with 64px sprites, so much
+# beyond this stops reading as an aquarium and starts reading as a shoal.
+TANK_CAPACITY = 8
+
 # A gap longer than this ends the current sitting at the keyboard.
 SESSION_GAP = 120.0
 
@@ -388,6 +392,45 @@ class UnlockManager:
     @property
     def caught_today(self):
         return self.user_data.get("caught_today", [])
+
+    def tank_lineup(self, capacity=TANK_CAPACITY):
+        """Which fish are swimming today.
+
+        The tank never empties - fish you have caught are yours - but it also
+        cannot hold the whole collection, so it is composed rather than dumped:
+
+          1. favourites, because that is an explicit "keep this one visible"
+          2. today's catches, so the day's typing visibly changes the tank
+          3. a rotating cast of everything else, to fill the remaining room
+
+        The rotation is seeded on the date, so it is stable all day and differs
+        tomorrow. That is what keeps the tank feeling alive without anything
+        ever being taken away.
+        """
+        owned = self.user_data.get("owned_fish", [])
+        seen, unique = set(), []
+        for fish_id in owned:
+            if fish_id not in seen:
+                seen.add(fish_id)
+                unique.append(fish_id)
+
+        lineup = []
+
+        def add(fish_id):
+            if fish_id in unique and fish_id not in lineup and len(lineup) < capacity:
+                lineup.append(fish_id)
+
+        for fish_id in self.user_data.get("favorite_fish", []):
+            add(fish_id)
+        for fish_id in self.caught_today:
+            add(fish_id)
+
+        remaining = [f for f in unique if f not in lineup]
+        random.Random(self._logical_today().toordinal()).shuffle(remaining)
+        for fish_id in remaining:
+            add(fish_id)
+
+        return lineup
 
     @property
     def total_chars_all_time(self):

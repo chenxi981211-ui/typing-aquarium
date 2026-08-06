@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt, QSize, QTimer
 from ui_components import first_frame_pixmap
 import aero
 from sound_manager import sounds
+from time_manager import TANK_CAPACITY
 
 
 class CollectionWindow(QWidget):
@@ -429,8 +430,8 @@ class FishCard(aero.LiquidPanel):
             favorites.remove(self.fish_id)
             is_fav = False
         else:
-            if len(favorites) >= 15:
-                print("Maximum tank capacity (15 favorites) reached!")
+            if len(favorites) >= TANK_CAPACITY:
+                print(f"Tank holds {TANK_CAPACITY} fish - unstar one first.")
                 return
             favorites.append(self.fish_id)
             is_fav = True

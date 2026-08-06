@@ -33,26 +33,11 @@ def main():
         # Sounds need QApplication to exist before they can be built
         sounds.load(time_manager)
 
-        # The tank shows what today has earned, not the whole collection - the
-        # inventory is the permanent record. Starting full of previously caught
-        # fish made the day's typing feel like it changed nothing.
-        owned = time_manager.user_data.get("owned_fish", [])
-        favorites = time_manager.user_data.get("favorite_fish", [])
-
-        initial_fish = []
-
-        # Favourites are a deliberate pin - the user asked for those to stay.
-        for f in favorites:
-            if f in owned and f not in initial_fish:
-                initial_fish.append(f)
-
-        # Then whatever today's typing has actually earned.
-        for f in time_manager.caught_today:
-            if len(initial_fish) < 12:
-                initial_fish.append(f)
-
-        # An empty tank reads as broken rather than as a fresh start, so one
-        # fish keeps it alive until the day's first catch arrives.
+        # The tank keeps its fish - an aquarium that empties overnight reads as
+        # the fish dying, not as a fresh start. UnlockManager.tank_lineup picks
+        # who is swimming: favourites, then today's catches, then a rotating
+        # cast of the rest.
+        initial_fish = time_manager.tank_lineup()
         if not initial_fish:
             initial_fish = [STARTER_FISH]
 

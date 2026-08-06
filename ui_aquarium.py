@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, QR
 
 from ui_components import RoundedBackgroundWidget, StatCard, SpriteSheetFish, TabButton
 from fish_manager import SwimmingFish
+from time_manager import TANK_CAPACITY
 from sound_manager import sounds
 import aero
 
@@ -685,7 +686,7 @@ class AquariumWidget(QWidget):
     def spawn_fish_sprite(self, fish_id):
         print(f"[UI] Spawning Fish : {fish_id}")
 
-        MAX_FISH = 15
+        MAX_FISH = TANK_CAPACITY
         if len(self.active_fish_sprites) >= MAX_FISH:
             self.remove_oldest_fish()
             if len(self.active_fish_sprites) >= MAX_FISH:
