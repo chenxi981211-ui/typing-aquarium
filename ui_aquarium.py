@@ -8,7 +8,8 @@ from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QFrame, QStackedWidget
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, QSize, QTimer, QPropertyAnimation, QEasingCurve, QRect, QPoint
 
-from ui_components import RoundedBackgroundWidget, StatCard, SpriteSheetFish, TabButton
+from ui_components import (RoundedBackgroundWidget, StatCard, SpriteSheetFish,
+                           TabButton, TrafficLights)
 from fish_manager import SwimmingFish
 from time_manager import TANK_CAPACITY
 from sound_manager import sounds
@@ -94,22 +95,14 @@ class AquariumWidget(QWidget):
         left_layout.setContentsMargins(14, 0, 0, 0)
         left_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        self.off_btn = QPushButton()
-        self.off_btn.setIcon(QIcon("assets/off_button.png"))
-        self.off_btn.setIconSize(QSize(11, 11))
-        self.off_btn.setFixedSize(11, 11)
-        self.off_btn.setStyleSheet("background: transparent; border: none;")
-        self.off_btn.clicked.connect(self.close_app)
-
-        self.minimize_btn = QPushButton()
-        self.minimize_btn.setIcon(QIcon("assets/minimize_button.png"))
-        self.minimize_btn.setIconSize(QSize(11, 11))
-        self.minimize_btn.setFixedSize(11, 11)
-        self.minimize_btn.setStyleSheet("background: transparent; border: none;")
-        self.minimize_btn.clicked.connect(self.minimize_app)
-
-        left_layout.addWidget(self.off_btn)
-        left_layout.addWidget(self.minimize_btn)
+        # Close, minimise and full view as the macOS dots. Green opening the
+        # tank full screen is the convention people already know, so it needs
+        # no label - the glyphs appear on hover to confirm it.
+        self.window_controls = TrafficLights(
+            on_close=self.close_app,
+            on_minimise=self.minimize_app,
+            on_fullscreen=self.open_full_view)
+        left_layout.addWidget(self.window_controls)
 
         # Center - Title with fish icon
         title_widget = QWidget()
@@ -244,22 +237,6 @@ class AquariumWidget(QWidget):
         fish_count_layout.addWidget(self.fish_count_icon)
         fish_count_layout.addWidget(self.fish_count_label)
         self.fish_count_widget.raise_()
-
-        # Expand control, sitting opposite the counter so the tank's two
-        # corners balance.
-        self.expand_btn = QPushButton(self.aquarium_container)
-        self.expand_btn.setIcon(QIcon(aero.contrast_icon("assets/large_mode_icon.png", 16,
-                                                         aero.ICON_TINT)))
-        self.expand_btn.setIconSize(QSize(18, 18))
-        self.expand_btn.setGeometry(8, 8, 30, 30)
-        self.expand_btn.setToolTip("Full view")
-        self.expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.expand_btn.setStyleSheet("""
-            QPushButton { background: rgba(6, 30, 58, 0.42); border: none; border-radius: 15px; }
-            QPushButton:hover { background: rgba(10, 48, 88, 0.72); }
-        """)
-        self.expand_btn.clicked.connect(self.open_full_view)
-        self.expand_btn.raise_()
 
         aquarium_layout.addWidget(self.aquarium_container, alignment=Qt.AlignmentFlag.AlignHCenter)
 

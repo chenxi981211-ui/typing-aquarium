@@ -2,8 +2,8 @@
 
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
 from PyQt6.QtGui import (QPixmap, QPainter, QPainterPath, QColor, QLinearGradient, QTransform,
-                         QIcon, QPen, QFont)
-from PyQt6.QtCore import Qt, QTimer, QSize, QRect, QRectF
+                         QIcon, QPen, QFont, QRadialGradient)
+from PyQt6.QtCore import Qt, QTimer, QSize, QRect, QRectF, QPointF
 
 import aero
 
@@ -179,6 +179,118 @@ def first_frame_pixmap(sprite_path):
     if pixmap.width() == SHEET_SIZE and pixmap.height() == SHEET_SIZE:
         return pixmap.copy(0, 0, SHEET_SIZE // 4, SHEET_SIZE // 4)
     return pixmap
+
+
+class TrafficLights(QWidget):
+    """Close, minimise and full view, as the macOS dots.
+
+    The glyphs only appear on hover, and hovering any one dot reveals all
+    three - that is how macOS behaves, and it is what tells you the green dot
+    does something without having to label it.
+    """
+
+    DOT = 12
+    GAP = 8
+
+    CLOSE = QColor(255, 95, 87)
+    MINIMISE = QColor(254, 188, 46)
+    FULLSCREEN = QColor(40, 200, 64)
+
+    def __init__(self, on_close, on_minimise, on_fullscreen, parent=None):
+        super().__init__(parent)
+        self.actions = [
+            (self.CLOSE, "close", on_close, "Close"),
+            (self.MINIMISE, "minimise", on_minimise, "Minimise"),
+            (self.FULLSCREEN, "fullscreen", on_fullscreen, "Full view"),
+        ]
+        self.hovered = False
+        self.setFixedSize(self.DOT * 3 + self.GAP * 2, self.DOT)
+        self.setMouseTracking(True)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setToolTip("Close · Minimise · Full view")
+
+    def _dot_rect(self, index):
+        return QRectF(index * (self.DOT + self.GAP), 0, self.DOT, self.DOT)
+
+    def enterEvent(self, event):
+        self.hovered = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.hovered = False
+        self.update()
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() != Qt.MouseButton.LeftButton:
+            return
+        for index, (_, _, action, _) in enumerate(self.actions):
+            if self._dot_rect(index).contains(event.position()):
+                action()
+                event.accept()
+                return
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        for index, (colour, glyph, _, _) in enumerate(self.actions):
+            rect = self._dot_rect(index)
+
+            fill = QRadialGradient(rect.center() - QPointF(0, self.DOT * 0.3), self.DOT)
+            fill.setColorAt(0.0, colour.lighter(125))
+            fill.setColorAt(1.0, colour.darker(112))
+            painter.setBrush(fill)
+            painter.setPen(QPen(colour.darker(150), 0.8))
+            painter.drawEllipse(rect)
+
+            if self.hovered:
+                self._draw_glyph(painter, rect, glyph)
+
+        painter.end()
+
+    def _draw_glyph(self, painter, rect, glyph):
+        painter.setPen(QPen(QColor(0, 0, 0, 150), 1.3, cap=Qt.PenCapStyle.RoundCap))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        centre = rect.center()
+        reach = self.DOT * 0.20
+
+        if glyph == "close":
+            painter.drawLine(QPointF(centre.x() - reach, centre.y() - reach),
+                             QPointF(centre.x() + reach, centre.y() + reach))
+            painter.drawLine(QPointF(centre.x() + reach, centre.y() - reach),
+                             QPointF(centre.x() - reach, centre.y() + reach))
+
+        elif glyph == "minimise":
+            painter.drawLine(QPointF(centre.x() - reach - 1, centre.y()),
+                             QPointF(centre.x() + reach + 1, centre.y()))
+
+        else:
+            # Two triangles pointing out of opposite corners - the macOS
+            # full-screen mark, which reads as "expand" without a label.
+            # Two corner wedges with a clear diagonal channel between them.
+            # Letting them reach the centre merges them into one blob at 12px.
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(0, 0, 0, 150))
+            span = self.DOT * 0.26
+            gap = span * 0.30
+
+            upper = QPainterPath()
+            upper.moveTo(centre.x() + span, centre.y() - span)
+            upper.lineTo(centre.x() + span, centre.y() - gap)
+            upper.lineTo(centre.x() + gap, centre.y() - span)
+            upper.closeSubpath()
+
+            lower = QPainterPath()
+            lower.moveTo(centre.x() - span, centre.y() + span)
+            lower.lineTo(centre.x() - span, centre.y() + gap)
+            lower.lineTo(centre.x() - gap, centre.y() + span)
+            lower.closeSubpath()
+
+            painter.drawPath(upper)
+            painter.drawPath(lower)
 
 
 class TabButton(QWidget, aero.LiquidMixin):
