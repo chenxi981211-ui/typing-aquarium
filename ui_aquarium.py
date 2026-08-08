@@ -343,11 +343,18 @@ class AquariumWidget(QWidget):
     def toggle_view_mode(self):
         """Toggle between large mode and minimal mode with smooth animation"""
 
-        # Minimal mode only makes sense on the tank; from any other page it would
-        # capture that page's height as the "normal" one.
+        # Minimal mode only makes sense on the tank, but pressing minimise should
+        # still minimise. This used to just jump to the tank at full height and
+        # stop, so the button did the wrong thing entirely from Settings.
         if self.content_stack.currentWidget() is not self.aquarium_content:
-            self.show_aquarium()
-            return
+            self.show_aquarium_now()
+            # Snap to the tank's normal height before measuring below, so the
+            # collapse is measured from a settled tank layout rather than from
+            # whatever height the page we just left happened to be.
+            self.setFixedSize(self.window_width, self.window_height)
+            self.border_widget.setGeometry(0, 0, self.window_width, self.window_height)
+            self.border_widget.layout().activate()
+            self.large_mode = True
 
         current_rect = self.geometry()
 
@@ -496,12 +503,32 @@ class AquariumWidget(QWidget):
         sounds.play("click")
         self.go_to_page(self.settings_page, self.settings_page.PAGE_HEIGHT, active_tab=None)
 
+    def show_aquarium_now(self):
+        """Switch to the tank without animating the window height.
+
+        Used by minimise, which is about to animate to the collapsed height
+        itself - going the long way through go_to_page would start a second,
+        competing animation.
+        """
+        self.content_stack.setCurrentWidget(self.aquarium_content)
+        for tab in (self.chest_btn, self.tank_btn, self.stats_btn):
+            tab.set_active(tab is self.tank_btn)
+        self.fade_in_widgets()
+
     def go_to_page(self, page, target_height, active_tab=None):
         """Show a page and grow/shrink the window to fit it."""
         self.content_stack.setCurrentWidget(page)
 
         for tab in (self.chest_btn, self.tank_btn, self.stats_btn):
             tab.set_active(tab is active_tab)
+
+        # Every full page shows the chrome. Without this, opening Settings from
+        # minimal mode (the gear stays reachable there) left the stat cards and
+        # tab bar hidden, so the page came back with blank strips where they
+        # should be - and large_mode still claimed we were collapsed.
+        self.fade_in_widgets()
+        self.large_mode = True
+        self.view_btn.setIcon(QIcon(aero.contrast_icon("assets/minimal_mode_icon.png", 16, aero.ICON_TINT)))
 
         # Never grow past the screen the window is on
         screen = self.screen()

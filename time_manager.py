@@ -5,7 +5,16 @@ import json
 import os
 import time
 import random
+import tempfile
 from datetime import datetime, timedelta
+
+from paths import data_path, save_file, is_demo
+
+# Recording tuning, active only when AQUARIUM_SAVE is set. Normal play waits 60
+# seconds of typing and then wins a coin flip; on camera that means long takes
+# and half of them ending in nothing.
+DEMO_SPAWN_SECONDS = 12.0
+DEMO_FISH_ENV = "AQUARIUM_DEMO_FISH"
 
 
 # The logical day rolls over at 2am, so "today" runs 2am -> 1am next morning.
@@ -36,12 +45,35 @@ DEFAULT_SETTINGS = {
     "sound_effects": True,
 }
 
+# Named stretches of the day, as clock hours. A logical day runs 2am to 2am,
+# so a single day's hours read 2,3,...,23,0,1 - which is why night owns both
+# the small hours at the start and the late hours at the end.
+#
+# The old day_night pair split the clock in half and qualified the moment you
+# were simply awake. These are narrower and have to be earned inside the window.
+TIME_WINDOWS = {
+    "dawn": (5, 6, 7),
+    "day": (8, 9, 10, 11, 12, 13, 14, 15, 16, 17),
+    "evening": (18, 19, 20, 21),
+    "night": (22, 23, 0, 1, 2, 3, 4),
+}
+
+WINDOW_LABELS = {
+    "dawn": "at dawn, before 8am",
+    "day": "during the day, 8am to 6pm",
+    "evening": "in the evening, 6pm to 10pm",
+    "night": "at night, after 10pm",
+}
+
 # Stats that describe today only, and the value they reset to at 2am.
 DAILY_STATS = {
     "total_chars_today": 0,
     "total_active_time": 0.0,
     "highest_wpm_today": 0,
     "longest_focus_today": 0.0,
+    # Best sustained fast stretch today, in minutes. Kept here rather than on
+    # the spawn cycle so a burst earned at 10am still counts at 4pm.
+    "longest_burst_today": 0.0,
     "wpm_sample_total": 0,
     "wpm_sample_count": 0,
     "typing_seconds_today": 0.0,
@@ -52,7 +84,11 @@ DAILY_STATS = {
 
 
 class UnlockManager:
-    def __init__(self, fish_json_path="fish.json", save_json_path="save.json"):
+    def __init__(self, fish_json_path="fish.json", save_json_path=None):
+        # fish.json is bundled and read-only, so a relative path is fine; the
+        # save file has to land somewhere writable, which is not the bundle.
+        if save_json_path is None:
+            save_json_path = save_file()
         self.fish_json_path = fish_json_path
         self.save_json_path = save_json_path
 
@@ -81,15 +117,42 @@ class UnlockManager:
         # Length of the current unbroken typing session, for longest_focus_today
         self.current_session_seconds = 0.0
 
+        # Set by the app so a stats reset can clear live readings on the spot
+        self.on_reset = None
+
+        # Recording mode: a short, certain unlock of a chosen fish
+        self.demo_fish = None
+        if is_demo():
+            self.spawn_timer_threshold = DEMO_SPAWN_SECONDS
+            self.demo_fish = os.environ.get(DEMO_FISH_ENV) or None
+
         # Current spawn pool
         self.current_spawn_pool = []
         self.reset_spawn_pool()
 
     def _load_json(self, path, default):
-        if os.path.exists(path):
+        """Load a JSON file, keeping a damaged one instead of overwriting it.
+
+        A save file that will not parse used to raise straight out of startup.
+        Starting fresh is the only way to carry on, but doing that silently
+        would let the next autosave write over the damaged file and destroy any
+        chance of getting the history back - so it is moved aside first.
+        """
+        if not os.path.exists(path):
+            return default
+
+        try:
             with open(path, "r") as f:
                 return json.load(f)
-        return default
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            salvage = f"{path}.corrupt-{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            try:
+                os.replace(path, salvage)
+                print(f"⚠️  {os.path.basename(path)} was unreadable ({exc}).")
+                print(f"⚠️  Kept a copy at {salvage} - starting from defaults.")
+            except OSError:
+                print(f"⚠️  {os.path.basename(path)} is unreadable and could not be moved aside.")
+            return default
 
     def _load_initial_user_data(self):
         default_data = {
@@ -173,15 +236,31 @@ class UnlockManager:
         return now.strftime("%Y-%m-%d")
 
     def save_state(self):
-        self.user_data["last_saved_date"] = self._get_logical_date_string()
-        self.user_data["total_chars_today"] = self.user_data["total_chars_today"]
-        self.user_data["total_active_time"] = self.user_data["total_active_time"]
-        self.user_data["highest_wpm_today"] = self.user_data["highest_wpm_today"]
-        self.user_data["streak_days"] = self.user_data["streak_days"]
-        self.user_data["owned_fish"] = self.user_data["owned_fish"]
+        """Write the save file atomically.
 
-        with open(self.save_json_path, "w") as f:
-            json.dump(self.user_data, f, indent=4)
+        Writing straight into save.json means any interruption - a crash, a
+        force quit, or a second copy of the app reading the file halfway
+        through - leaves truncated JSON behind, and the next start silently
+        falls back to defaults and loses every day of history. Building the new
+        file alongside and renaming it over the old one makes the swap atomic,
+        so the save is either the old version or the new one, never a torn mix.
+        """
+        self.user_data["last_saved_date"] = self._get_logical_date_string()
+
+        directory = os.path.dirname(os.path.abspath(self.save_json_path))
+        os.makedirs(directory, exist_ok=True)
+
+        handle, temp_path = tempfile.mkstemp(dir=directory, prefix=".save-", suffix=".json")
+        try:
+            with os.fdopen(handle, "w") as f:
+                json.dump(self.user_data, f, indent=4)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_path, self.save_json_path)
+        except BaseException:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise
 
     def register_activity(self):
         current_time = time.time()
@@ -245,22 +324,8 @@ class UnlockManager:
             self.current_focus_minutes = 0.0
         self.last_focus_keystroke = current_time
 
-        # Track burst time for fish unlocks (10 second grace period)
-        if self.last_burst_keystroke is not None:
-            elapsed = current_time - self.last_burst_keystroke
-            if elapsed <= self.burst_grace_period:
-                if self.burst_start_time is None:
-                    self.burst_start_time = current_time
-                else:
-                    current_burst_duration_mins = (current_time - self.burst_start_time) / 60.0
-                    if current_burst_duration_mins > self.longest_burst_minutes_this_cycle:
-                        self.longest_burst_minutes_this_cycle = current_burst_duration_mins
-            else:
-                self.burst_start_time = None
-                self.longest_burst_minutes_this_cycle = 0.0
-        else:
-            self.burst_start_time = current_time
-        self.last_burst_keystroke = current_time
+        # Burst is tracked in update_qualifiers instead, where the live WPM
+        # reading is available - it is a speed condition, not a continuity one.
 
         self.last_keystroke_time = current_time
 
@@ -272,8 +337,48 @@ class UnlockManager:
 
         return milestone_reached
 
+    def chars_in_window(self, window):
+        """Characters typed today inside a named stretch of the day.
+
+        Read straight off hourly_activity, which already counts per clock hour
+        and clears at the 2am rollover, so no extra bookkeeping is needed.
+        """
+        hours = TIME_WINDOWS.get(window, ())
+        hourly = self.user_data.get("hourly_activity", {})
+        return sum(hourly.get(str(h), 0) for h in hours)
+
+    def _track_burst(self, current_wpm):
+        """Time spent held above the burst speed, as today's best unbroken run.
+
+        The detail page promises "hold 50 WPM or more", so this has to actually
+        watch the speed. It previously only measured typing continuity and
+        ignored burst_speed_threshold entirely, which made burst a stricter
+        copy of focus rather than a condition of its own.
+        """
+        now = time.time()
+
+        # A pause long enough to break the run ends it. Without this an idle
+        # spell would be counted as burst time, since nothing runs while idle.
+        idle = self.last_burst_keystroke is not None and (now - self.last_burst_keystroke) > self.burst_grace_period
+        self.last_burst_keystroke = now
+
+        if current_wpm < self.burst_speed_threshold or idle:
+            self.burst_start_time = None
+            self.longest_burst_minutes_this_cycle = 0.0
+            return
+
+        if self.burst_start_time is None:
+            self.burst_start_time = now
+            return
+
+        run = (now - self.burst_start_time) / 60.0
+        self.longest_burst_minutes_this_cycle = max(self.longest_burst_minutes_this_cycle, run)
+        if run > self.user_data.get("longest_burst_today", 0.0):
+            self.user_data["longest_burst_today"] = run
+
     def update_qualifiers(self, live_typing_stats):
         current_wpm = live_typing_stats.get("wpm", 0)
+        self._track_burst(current_wpm)
 
         # Update highest WPM
         if current_wpm > self.user_data["highest_wpm_today"]:
@@ -289,9 +394,8 @@ class UnlockManager:
             self.user_data["wpm_sample_total"] = self.user_data.get("wpm_sample_total", 0) + current_wpm
             self.user_data["wpm_sample_count"] = self.user_data.get("wpm_sample_count", 0) + 1
 
-        # Day/night period
-        now = datetime.now()
-        current_period = "night" if (now.hour >= 18 or now.hour < 2) else "day"
+        focus_minutes_today = self.user_data.get("longest_focus_today", 0.0) / 60.0
+        burst_minutes_today = self.user_data.get("longest_burst_today", 0.0)
 
         # Qualification loop
         for fish in self.fish_definitions:
@@ -305,22 +409,35 @@ class UnlockManager:
             if u_type == "char_count" and self.user_data["total_chars_today"] >= threshold:
                 qualified = True
                 print(f"🔓 {fish['id']} qualified! (char_count: {self.user_data['total_chars_today']} >= {threshold})")
+            # The one condition that never resets - a running lifetime total
+            # rather than anything you can earn inside a single day.
+            elif u_type == "total_chars" and self.user_data.get("total_chars_all_time", 0) >= threshold:
+                qualified = True
+                print(f"🔓 {fish['id']} qualified! (all-time: {self.user_data['total_chars_all_time']} >= {threshold})")
             elif u_type == "typing_speed" and self.user_data["highest_wpm_today"] >= threshold:
                 qualified = True
                 print(f"🔓 {fish['id']} qualified! (typing_speed: {self.user_data['highest_wpm_today']} >= {threshold})")
-            elif u_type == "focus" and self.current_focus_minutes >= threshold:
+            # Focus and burst read today's best, not the current spawn cycle's.
+            # reset_spawn_pool() runs every 60 seconds of typing and used to
+            # zero both counters, so neither could ever climb past ~1 minute
+            # and every fish gated on them was uncatchable.
+            elif u_type == "focus" and focus_minutes_today >= threshold:
                 qualified = True
-                print(f"🔓 {fish['id']} qualified! (focus: {self.current_focus_minutes:.1f} mins >= {threshold})")
-            elif u_type == "burst" and self.longest_burst_minutes_this_cycle >= threshold:
+                print(f"🔓 {fish['id']} qualified! (focus: {focus_minutes_today:.1f} mins >= {threshold})")
+            elif u_type == "burst" and burst_minutes_today >= threshold:
                 qualified = True
-                print(
-                    f"🔓 {fish['id']} qualified! (burst: {self.longest_burst_minutes_this_cycle:.1f} mins >= {threshold})")
+                print(f"🔓 {fish['id']} qualified! (burst: {burst_minutes_today:.1f} mins >= {threshold})")
             elif u_type == "streak" and self.user_data["streak_days"] >= threshold:
                 qualified = True
                 print(f"🔓 {fish['id']} qualified! (streak: {self.user_data['streak_days']} days >= {threshold})")
-            elif u_type == "day_night" and current_period == fish["unlock"]["value"]:
-                qualified = True
-                print(f"🔓 {fish['id']} qualified! (day_night: {current_period})")
+            elif u_type == "time_window":
+                window = fish["unlock"].get("window", "day")
+                typed = self.chars_in_window(window)
+                if typed >= threshold:
+                    qualified = True
+                    print(f"🔓 {fish['id']} qualified! ({window}: {typed} chars >= {threshold})")
+            # day_night is gone: it halved the clock and qualified the moment
+            # you were awake. time_window replaces it.
 
             if qualified:
                 self.current_spawn_pool.append(fish["id"])
@@ -330,7 +447,7 @@ class UnlockManager:
         print(f"\n🎲 SPAWN CHECK - Pool size: {len(self.current_spawn_pool)}")
         print(f"   Pool contents: {self.current_spawn_pool}")
 
-        if not force_spawn and random.random() > 0.50:
+        if not force_spawn and not is_demo() and random.random() > 0.50:
             print(f"   ❌ Coin flip failed (50% chance)")
             self.reset_spawn_pool()
             return "coin_flip_failed"
@@ -350,7 +467,10 @@ class UnlockManager:
             self.reset_spawn_pool()
             return "pool_empty"
 
-        selected_fish = random.choices(eligible_fish, weights=rarity_weights, k=1)[0]
+        if self.demo_fish and self.demo_fish in eligible_fish:
+            selected_fish = self.demo_fish
+        else:
+            selected_fish = random.choices(eligible_fish, weights=rarity_weights, k=1)[0]
 
         # Record discovery date if this is the first time
         if "discovery_dates" not in self.user_data:
@@ -367,13 +487,20 @@ class UnlockManager:
 
     def reset_spawn_pool(self):
         self.current_spawn_pool = []
+        # Deliberately does not touch burst_start_time or the focus timer: this
+        # runs every 60 seconds of typing, so clearing them capped both at about
+        # a minute and left every focus and burst fish permanently unreachable.
         self.longest_burst_minutes_this_cycle = 0.0
-        self.burst_start_time = None
-        self.current_focus_minutes = 0.0
 
         for fish in self.fish_definitions:
             if fish["unlock"]["type"] == "random":
                 self.current_spawn_pool.append(fish["id"])
+
+        # The fish staged for the camera goes in regardless of its condition -
+        # waiting on a 12-minute focus run mid-shoot is not workable.
+        demo_fish = getattr(self, "demo_fish", None)
+        if demo_fish and demo_fish not in self.current_spawn_pool:
+            self.current_spawn_pool.append(demo_fish)
 
         print(f"🔄 Spawn pool reset. Random fish available: {self.current_spawn_pool}")
 
@@ -543,6 +670,18 @@ class UnlockManager:
         self.user_data["discovery_dates"] = {}
         self.user_data["caught_today"] = []
         self.current_session_seconds = 0.0
+        self.current_focus_minutes = 0.0
+        self.longest_burst_minutes_this_cycle = 0.0
+        self.burst_start_time = None
+        self.last_keystroke_time = None
+        self.last_focus_keystroke = None
+        self.last_burst_keystroke = None
         self.reset_spawn_pool()
         self.save_state()
+
+        # Lets the app clear the live speed reading and repaint the stat cards
+        # straight away. Without it the old WPM stayed on screen until the next
+        # keystroke happened to overwrite it.
+        if self.on_reset is not None:
+            self.on_reset()
         print("🧹 All stats reset")

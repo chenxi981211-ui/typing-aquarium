@@ -217,23 +217,34 @@ class FishCard(aero.LiquidPanel):
         image_layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(image_container, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # NEW badge
+        # NEW badge - a glossy aqua pill, to match the rest of the glass rather
+        # than the flat red-on-black chip this used to be.
         if is_new and is_owned:
             self.new_badge = QLabel("NEW", self)
             self.new_badge.setStyleSheet("""
                 QLabel {
-                    color: #FF6B6B;
+                    color: #06283F;
                     font-size: 8px;
-                    font-weight: bold;
+                    font-weight: 800;
                     font-family: 'DM Sans';
-                    background-color: rgba(0, 0, 0, 0.8);
-                    padding: 2px 6px;
-                    border-radius: 10px;
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                                stop:0    rgba(214, 252, 255, 255),
+                                                stop:0.45 rgba(138, 232, 250, 255),
+                                                stop:0.55 rgba(104, 210, 238, 255),
+                                                stop:1    rgba(150, 238, 250, 255));
+                    border: 1px solid rgba(255, 255, 255, 0.85);
+                    border-radius: 7px;
+                    padding: 1px 5px;
                 }
             """)
             self.new_badge.adjustSize()
-            self.new_badge.move(image_container.x() + image_container.width() - self.new_badge.width() - 2,
-                                image_container.y() + 2)
+            self.new_badge.setFixedHeight(14)
+            # The card is a fixed 110x130, so this can be placed outright. The
+            # old code read image_container.x(), which is still 0 before the
+            # layout has run, so the badge landed adrift of the artwork.
+            # Top-left, because the favourite star owns the top-right.
+            self.new_badge.move(6, 5)
+            self.new_badge.raise_()
 
         # ===== FISH NAME WITH MARQUEE EFFECT (ONLY FOR UNLOCKED FISH) =====
         if is_owned:
@@ -710,7 +721,18 @@ class CollectionWidget(QWidget):
 
             card.mousePressEvent = lambda e, c=card: self.on_card_clicked(c)
 
-            self.grid_layout.addWidget(card, row, col)
+            # Pinned to the top-left of its cell. The cards are a fixed size in
+            # columns that stretch, so any width past the exact fit let Qt centre
+            # each card inside its cell - the whole block crept toward the middle
+            # of the page and the first fish stopped reading as the first fish.
+            self.grid_layout.addWidget(card, row, col,
+                                       Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+
+        # Any leftover width goes to a spare column past the last card, so the
+        # three card columns keep their natural size instead of sharing the slack.
+        for col in range(columns):
+            self.grid_layout.setColumnStretch(col, 0)
+        self.grid_layout.setColumnStretch(columns, 1)
 
         # Calculate the total height needed
         if fish_list:

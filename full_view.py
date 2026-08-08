@@ -7,8 +7,9 @@ the glass backdrop and the minimal-mode maths all depend on, and stretching it
 to the screen would unpick all of that.
 
 Because the fish here are their own sprites, the desktop tank carries on
-undisturbed underneath and the two can hold different numbers of fish - this
-one has room for far more.
+undisturbed underneath. It shows the same fish, the same number of them, and
+scaled by the same factor as the tank - this is a magnified view of that tank,
+not a second one with its own stock.
 """
 
 import os
@@ -22,10 +23,16 @@ import aero
 from fish_manager import SwimmingFish
 from ui_components import SpriteSheetFish
 
-# The desktop tank tops out at 15; a full screen is roughly ten times the area,
-# so it can carry a real shoal without looking crowded.
-MAX_FISH = 40
-FISH_SIZE = 96
+# The desktop tank, which this view is a magnified copy of. Fish are scaled by
+# the same factor as the tank itself, so the density on screen is identical -
+# eight fish here look exactly as crowded as eight fish in the small tank.
+TANK_WIDTH, TANK_HEIGHT = 354, 275
+TANK_FISH_SIZE = 64
+
+# Used when the screen cannot be queried. A plain menu bar is about 25px, so
+# this clears one comfortably and is only a floor - a notched display reports
+# more and that larger value wins.
+MENU_BAR_FALLBACK = 28
 
 
 class FullTankWindow(QWidget):
@@ -45,20 +52,36 @@ class FullTankWindow(QWidget):
 
         self._art = QPixmap(os.path.join("assets", background))
 
-        self.close_btn = QPushButton(self)
-        self.close_btn.setIcon(QIcon(aero.contrast_icon("assets/off_button.png", 18, aero.ICON_TINT)))
-        self.close_btn.setIconSize(QSize(20, 20))
-        self.close_btn.setFixedSize(38, 38)
+        # Scale on the tighter axis so the magnified tank still fits the screen
+        self.scale = min(self.width() / TANK_WIDTH, self.height() / TANK_HEIGHT)
+        self.fish_size = int(TANK_FISH_SIZE * self.scale)
+
+        # Spelled out rather than a bare icon: with no window frame there is
+        # nothing else on screen to indicate how to get out of here.
+        self.close_btn = QPushButton("\u2715   Exit full view", self)
+        self.close_btn.setFixedSize(158, 40)
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.close_btn.setStyleSheet("""
-            QPushButton { background: rgba(6, 30, 58, 0.45); border: none; border-radius: 19px; }
-            QPushButton:hover { background: rgba(10, 48, 88, 0.75); }
+        self.close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: rgba(6, 30, 58, 0.55);
+                border: 1px solid rgba(174, 233, 247, 0.35);
+                border-radius: 20px;
+                color: {aero.TEXT};
+                font-size: 13px;
+                font-family: 'DM Sans';
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background: rgba(12, 56, 100, 0.85);
+                border-color: rgba(174, 233, 247, 0.7);
+            }}
         """)
         self.close_btn.clicked.connect(self.close)
 
-        self.hint = QLabel("Esc to close", self)
-        self.hint.setStyleSheet(aero.label_css(12, aero.TEXT_DIM, 500))
-        self.hint.adjustSize()
+        self.hint = QLabel("or press Esc", self)
+        self.hint.setStyleSheet(aero.label_css(11, aero.TEXT_DIM, 500))
+        self.hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.hint.setFixedWidth(158)
 
         self.movement_timer = QTimer(self)
         self.movement_timer.timeout.connect(self.update_fish_positions)
@@ -68,9 +91,25 @@ class FullTankWindow(QWidget):
 
     # ===== presentation =====
 
+    def _top_inset(self):
+        """How far down the menu bar reaches on this screen.
+
+        The window covers the screen's full geometry, but macOS keeps drawing
+        the menu bar over the top of it, so anything placed near y=0 ends up
+        underneath. The gap between the full and available geometry is exactly
+        that strip - 43px on a notched display, around 25 without - which is
+        why this is measured rather than assumed.
+        """
+        screen = self.screen()
+        if screen is None:
+            return MENU_BAR_FALLBACK
+        inset = screen.availableGeometry().top() - screen.geometry().top()
+        return max(inset, MENU_BAR_FALLBACK)
+
     def _place_controls(self):
-        self.close_btn.move(self.width() - 58, 20)
-        self.hint.move(self.width() - 58 - self.hint.width() - 12, 30)
+        top = self._top_inset() + 16
+        self.close_btn.move(self.width() - self.close_btn.width() - 24, top)
+        self.hint.move(self.close_btn.x(), self.close_btn.y() + self.close_btn.height() + 6)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -100,30 +139,36 @@ class FullTankWindow(QWidget):
     # ===== fish =====
 
     def stock(self, fish_ids):
-        """Fill the tank, repeating the day's catch so a big screen isn't bare."""
-        if not fish_ids:
-            return
-        for index in range(min(MAX_FISH, max(len(fish_ids), 12))):
-            self.spawn(fish_ids[index % len(fish_ids)])
+        """Mirror the desktop tank exactly - the same fish, once each.
+
+        Padding this out with copies made one fish look like a shoal, which is
+        not a bigger view of the tank, it is a different tank.
+        """
+        for fish_id in fish_ids:
+            self.spawn(fish_id)
 
     def spawn(self, fish_id):
         sprite_path = f"assets/{fish_id}_swim.png"
-        if not os.path.exists(sprite_path) or len(self.active_fish_sprites) >= MAX_FISH:
+        if not os.path.exists(sprite_path):
             return
 
         label = SpriteSheetFish(sprite_path, self)
-        dx = random.choice([-1.4, -1.0, -0.7, 0.7, 1.0, 1.4])
-        dy = random.choice([-0.5, -0.3, 0.0, 0.3, 0.5])
+        # Speeds scale with the tank as well, so a fish still crosses it in
+        # about the same time rather than appearing to crawl.
+        pace = self.scale
+        dx = random.choice([-1.0, -0.8, -0.5, 0.5, 0.8, 1.0]) * pace
+        dy = random.choice([-0.5, -0.3, 0.0, 0.3, 0.5]) * pace
         if dx > 0:
             label.flip()
 
-        x = random.randint(0, max(1, self.width() - FISH_SIZE))
-        y = random.randint(0, max(1, self.height() - FISH_SIZE))
-        label.setGeometry(x, y, FISH_SIZE, FISH_SIZE)
+        size = self.fish_size
+        x = random.randint(0, max(1, self.width() - size))
+        y = random.randint(0, max(1, self.height() - size))
+        label.setGeometry(x, y, size, size)
         label.show()
 
         fish = SwimmingFish(fish_id=fish_id, label=label, sprite_path=sprite_path,
-                            x=x, y=y, width=FISH_SIZE, height=FISH_SIZE)
+                            x=x, y=y, width=size, height=size)
         fish.dx, fish.dy = dx, dy
         fish.facing_right = dx > 0
         self.active_fish_sprites.append(fish)
@@ -131,10 +176,11 @@ class FullTankWindow(QWidget):
     def update_fish_positions(self):
         for fish in self.active_fish_sprites:
             if random.random() < 0.006:
-                fish.dx = max(-1.6, min(1.6, fish.dx + random.choice([-0.4, 0, 0.4])))
-                fish.dy = max(-1.1, min(1.1, fish.dy + random.choice([-0.3, 0, 0.3])))
-                if abs(fish.dx) < 0.25:
-                    fish.dx = 0.7 if random.random() > 0.5 else -0.7
+                limit_x, limit_y = 1.2 * self.scale, 1.0 * self.scale
+                fish.dx = max(-limit_x, min(limit_x, fish.dx + random.choice([-0.4, 0, 0.4]) * self.scale))
+                fish.dy = max(-limit_y, min(limit_y, fish.dy + random.choice([-0.3, 0, 0.3]) * self.scale))
+                if abs(fish.dx) < 0.25 * self.scale:
+                    fish.dx = (0.6 if random.random() > 0.5 else -0.6) * self.scale
                 self._face(fish)
 
             new_x = fish.x + fish.dx

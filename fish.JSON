@@ -27,8 +27,8 @@
     "rarity": 100,
     "max_owned": 99,
     "unlock": {
-      "type": "focus",
-      "value": 45,
+      "type": "char_count",
+      "value": 300,
       "label_reason": "This steady friend joined because of your incredible endurance!"
     },
     "animation": {
@@ -48,9 +48,10 @@
     "rarity": 90,
     "max_owned": 99,
     "unlock": {
-      "type": "burst",
-      "value": 2,
-      "label_reason": "Caught in the wave of a magical flow state!"
+      "type": "time_window",
+      "value": 300,
+      "label_reason": "Caught in the wave of a magical flow state!",
+      "window": "evening"
     },
     "animation": {
       "idle": "",
@@ -69,9 +70,10 @@
     "rarity": 80,
     "max_owned": 99,
     "unlock": {
-      "type": "day_night",
-      "value": "day",
-      "label_reason": "This sun-loving friend joined because you tackled your tasks bright and early under the warm light!"
+      "type": "time_window",
+      "value": 600,
+      "label_reason": "This sun-loving friend joined because you tackled your tasks bright and early under the warm light!",
+      "window": "day"
     },
     "animation": {
       "idle": "",
@@ -90,8 +92,8 @@
     "rarity": 70,
     "max_owned": 99,
     "unlock": {
-      "type": "typing_speed",
-      "value": 80,
+      "type": "char_count",
+      "value": 800,
       "label_reason": "This speedy swimmer was impressed by your lighting fast typing speed and couldn’t resist to ride along!"
     },
     "animation": {
@@ -111,8 +113,8 @@
     "rarity": 70,
     "max_owned": 99,
     "unlock": {
-      "type": "streak",
-      "value": 3,
+      "type": "typing_speed",
+      "value": 35,
       "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
     },
     "animation": {
@@ -132,8 +134,8 @@
     "rarity": 70,
     "max_owned": 99,
     "unlock": {
-      "type": "day_night",
-      "value": "night",
+      "type": "focus",
+      "value": 2,
       "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!"
     },
     "animation": {
@@ -154,7 +156,7 @@
     "max_owned": 99,
     "unlock": {
       "type": "typing_speed",
-      "value": 60,
+      "value": 45,
       "label_reason": "This speedy swimmer was impressed by your lighting fast typing speed and couldn’t resist to ride along!"
     },
     "animation": {
@@ -175,7 +177,7 @@
     "max_owned": 99,
     "unlock": {
       "type": "char_count",
-      "value": 2000,
+      "value": 1500,
       "label_reason": "Joined because you were a Keyboard Warrior!"
     },
     "animation": {
@@ -196,7 +198,7 @@
     "max_owned": 99,
     "unlock": {
       "type": "focus",
-      "value": 45,
+      "value": 3,
       "label_reason": "This steady friend joined because of your incredible endurance!"
     },
     "animation": {
@@ -217,7 +219,7 @@
     "max_owned": 99,
     "unlock": {
       "type": "streak",
-      "value": 5,
+      "value": 2,
       "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
     },
     "animation": {
@@ -237,8 +239,8 @@
     "rarity": 60,
     "max_owned": 5,
     "unlock": {
-      "type": "random",
-      "value": 0,
+      "type": "burst",
+      "value": 0.5,
       "label_reason": "Joined your aquarium completely at random to keep you company!"
     },
     "animation": {
@@ -259,7 +261,7 @@
     "max_owned": 99,
     "unlock": {
       "type": "char_count",
-      "value": 5000,
+      "value": 2500,
       "label_reason": "Joined because you were a Keyboard Warrior!"
     },
     "animation": {
@@ -279,8 +281,8 @@
     "rarity": 50,
     "max_owned": 99,
     "unlock": {
-      "type": "random",
-      "value": 0,
+      "type": "typing_speed",
+      "value": 55,
       "label_reason": "Joined your aquarium completely at random to keep you company!"
     },
     "animation": {
@@ -301,7 +303,7 @@
     "max_owned": 99,
     "unlock": {
       "type": "char_count",
-      "value": 2000,
+      "value": 3500,
       "label_reason": "Joined because you were a Keyboard Warrior!"
     },
     "animation": {
@@ -321,8 +323,8 @@
     "rarity": 40,
     "max_owned": 2,
     "unlock": {
-      "type": "burst",
-      "value": 2,
+      "type": "focus",
+      "value": 5,
       "label_reason": "Caught in the wave of a magical flow state!"
     },
     "animation": {
@@ -364,7 +366,7 @@
     "max_owned": 5,
     "unlock": {
       "type": "typing_speed",
-      "value": 80,
+      "value": 70,
       "label_reason": "This speedy swimmer was impressed by your lighting fast typing speed and couldn’t resist to ride along!"
     },
     "animation": {
@@ -384,8 +386,8 @@
     "rarity": 25,
     "max_owned": 1,
     "unlock": {
-      "type": "random",
-      "value": 0,
+      "type": "burst",
+      "value": 1,
       "label_reason": "Joined your aquarium completely at random to keep you company!"
     },
     "animation": {
@@ -406,7 +408,7 @@
     "max_owned": 5,
     "unlock": {
       "type": "streak",
-      "value": 5,
+      "value": 4,
       "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
     },
     "animation": {
@@ -427,7 +429,7 @@
     "max_owned": 3,
     "unlock": {
       "type": "focus",
-      "value": 60,
+      "value": 8,
       "label_reason": "This steady friend joined because of your incredible endurance!"
     },
     "animation": {
@@ -447,8 +449,8 @@
     "rarity": 10,
     "max_owned": 1,
     "unlock": {
-      "type": "day_night",
-      "value": "day",
+      "type": "char_count",
+      "value": 7500,
       "label_reason": "This sun-loving friend joined because you tackled your tasks bright and early under the warm light!"
     },
     "animation": {
@@ -468,9 +470,10 @@
     "rarity": 10,
     "max_owned": 1,
     "unlock": {
-      "type": "day_night",
-      "value": "night",
-      "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!"
+      "type": "time_window",
+      "value": 1000,
+      "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!",
+      "window": "night"
     },
     "animation": {
       "idle": "",
@@ -489,8 +492,8 @@
     "rarity": 10,
     "max_owned": 1,
     "unlock": {
-      "type": "char_count",
-      "value": 10000,
+      "type": "burst",
+      "value": 2,
       "label_reason": "Joined because you were a Keyboard Warrior!"
     },
     "animation": {
@@ -511,7 +514,7 @@
     "max_owned": 1,
     "unlock": {
       "type": "focus",
-      "value": 60,
+      "value": 12,
       "label_reason": "This steady friend joined because of your incredible endurance!"
     },
     "animation": {
@@ -531,9 +534,10 @@
     "rarity": 5,
     "max_owned": 1,
     "unlock": {
-      "type": "day_night",
-      "value": "night",
-      "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!"
+      "type": "time_window",
+      "value": 1200,
+      "label_reason": "This nocturnal beauty only appears when the stars are out, joining you to keep you company during your late-night grinding sessions!",
+      "window": "dawn"
     },
     "animation": {
       "idle": "",
@@ -552,8 +556,8 @@
     "rarity": 5,
     "max_owned": 2,
     "unlock": {
-      "type": "burst",
-      "value": 5,
+      "type": "typing_speed",
+      "value": 85,
       "label_reason": "Caught in the wave of a magical flow state!"
     },
     "animation": {
@@ -573,8 +577,8 @@
     "rarity": 5,
     "max_owned": 1,
     "unlock": {
-      "type": "char_count",
-      "value": 10000,
+      "type": "burst",
+      "value": 3,
       "label_reason": "Joined because you were a Keyboard Warrior!"
     },
     "animation": {
@@ -595,7 +599,7 @@
     "max_owned": 1,
     "unlock": {
       "type": "streak",
-      "value": 5,
+      "value": 7,
       "label_reason": "This magnificent fish traveled from distant waters because you showed up and logged in day after day!"
     },
     "animation": {
@@ -615,8 +619,8 @@
     "rarity": 1,
     "max_owned": 1,
     "unlock": {
-      "type": "random",
-      "value": 0,
+      "type": "total_chars",
+      "value": 250000,
       "label_reason": "Joined your aquarium completely at random to keep you company!"
     },
     "animation": {

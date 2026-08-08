@@ -173,9 +173,9 @@ class BackgroundCard(aero.LiquidPanel):
 class SettingsPage(QWidget):
     """The Settings screen.
 
-    Tank background and Reset are fully wired. The notification and sound
-    controls persist their state but have no engine behind them yet - they are
-    here so the screen matches the design and is ready to hook up.
+    Everything here is wired: tank background, Reset, the sound toggles, and the
+    two notification toggles, which now gate real Notification Center banners
+    posted through the menu bar item (see tray.MenuBarPresence).
     """
 
     PAGE_HEIGHT = 700

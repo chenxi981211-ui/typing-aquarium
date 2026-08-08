@@ -7,8 +7,10 @@ from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt, QSize
 from datetime import datetime
 
+import aero
 from ui_components import first_frame_pixmap
 from collection_widget import silhouette
+from time_manager import WINDOW_LABELS
 
 
 class FishDetailsWindow(QWidget):
@@ -32,18 +34,28 @@ class FishDetailsWindow(QWidget):
             Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(360, 596)
+        # Width is fixed so every fish gets the same column; the height is
+        # measured from the content at the end of __init__. A locked fish has
+        # three short lines where a caught one has a paragraph, and one fixed
+        # height left a large empty stretch under the sparser of the two.
+        self.setFixedWidth(self.WIDTH)
         self.setWindowTitle("")
 
-        # === Main container with rounded corners ===
-        main_container = QFrame(self)
-        main_container.setGeometry(0, 0, 360, 596)
-        main_container.setStyleSheet("""
-            QFrame {
-                background-color: rgba(7, 18, 35, 240);
-                border-radius: 20px;
-            }
-        """)
+        # === Main container: the same glass shell as the main window ===
+        # This was a flat navy QFrame, which made the detail page the only
+        # surface in the app with no refraction, rim light or backdrop.
+        #
+        # The glass asks its top-level window for the art it refracts, and this
+        # is its own window, so it has to supply that itself - derived from the
+        # tank theme in use, so the detail page matches whatever is behind it.
+        theme = "Spongebob.png"
+        if time_manager is not None:
+            theme = time_manager.get_setting("tank_background") or theme
+        self._backdrop = aero.backdrop_pixmap(os.path.join("assets", theme), self.WIDTH)
+
+        main_container = aero.LiquidShell(self)
+        main_container.setFixedWidth(self.WIDTH)
+        self.main_container = main_container
 
         # Main layout
         main_layout = QVBoxLayout(main_container)
@@ -120,19 +132,22 @@ class FishDetailsWindow(QWidget):
         # between a long swordfish and a round pufferfish.
         self.image_label.setPixmap(self._hero_pixmap(source))
         self.image_label.setFixedSize(self.HERO_W, self.HERO_H)
+
+        # No panel behind the art. The fish sits directly on the window glass,
+        # which keeps the focus on the animal rather than framing it in a box.
         main_layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         # ===== RARITY BADGE (matching Collection screen style) =====
         rarity = fish_data.get("rarity", 50)
         if rarity >= 50:
             rarity_text = "COMMON"
-            rarity_color = "#56D4C9"
+            rarity_color = aero.AQUA
         elif rarity >= 10:
             rarity_text = "RARE"
-            rarity_color = "#9B59B6"
+            rarity_color = aero.VIOLET
         else:
             rarity_text = "LEGENDARY"
-            rarity_color = "#F39C12"
+            rarity_color = aero.AMBER
 
         # Container with pill shape - matches Collection screen
         # Just the coloured word - no box, matching the collection cards.
@@ -161,20 +176,31 @@ class FishDetailsWindow(QWidget):
         # Add to main layout, centered
         main_layout.addWidget(rarity_container, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # ===== DIVIDER =====
-        main_layout.addWidget(self.create_divider())
+        # ===== INFO PANEL =====
+        # One glass panel instead of hairline dividers, matching how Statistics
+        # and Settings group their content.
+        info_panel = aero.LiquidPanel(radius=16, tint=aero.PANEL_TINT,
+                                      refract=1.28, thickness=5)
+        info_layout = QVBoxLayout(info_panel)
+        # Generous inset, and a small default gap that keeps each heading tied to
+        # the line under it. The larger breaks between the three groups are added
+        # explicitly below, so the panel reads as three blocks rather than seven
+        # evenly spaced lines.
+        info_layout.setContentsMargins(18, 16, 18, 18)
+        info_layout.setSpacing(5)
+        main_layout.addWidget(info_panel)
 
         # ===== FUN FACT =====
         fun_fact_label = QLabel("FUN FACT")
-        fun_fact_label.setStyleSheet("""
-            color: #56D4C9;
+        fun_fact_label.setStyleSheet(f"""
+            color: {aero.AQUA};
             font-size: 11px;
             font-weight: bold;
             font-family: 'DM Sans';
             background: transparent;
             letter-spacing: 0.5px;
         """)
-        main_layout.addWidget(fun_fact_label)
+        info_layout.addWidget(fun_fact_label)
 
         description = (fish_data.get("display", {}).get("description", "No description available.")
                        if self.is_owned
@@ -188,22 +214,20 @@ class FishDetailsWindow(QWidget):
             line-height: 1.5;
         """)
         desc_label.setWordWrap(True)
-        main_layout.addWidget(desc_label)
-
-        # ===== DIVIDER =====
-        main_layout.addWidget(self.create_divider())
+        info_layout.addWidget(desc_label)
 
         # ===== DISCOVERED DATE =====
+        info_layout.addSpacing(14)
         discovered_label = QLabel("DISCOVERED")
-        discovered_label.setStyleSheet("""
-            color: #56D4C9;
+        discovered_label.setStyleSheet(f"""
+            color: {aero.AQUA};
             font-size: 10px;
             font-weight: bold;
             font-family: 'DM Sans';
             background: transparent;
             letter-spacing: 0.5px;
         """)
-        main_layout.addWidget(discovered_label)
+        info_layout.addWidget(discovered_label)
 
         discovered_date = self.get_discovery_date()
         discovered_value = QLabel(discovered_date)
@@ -213,19 +237,20 @@ class FishDetailsWindow(QWidget):
             font-family: 'DM Sans';
             background: transparent;
         """)
-        main_layout.addWidget(discovered_value)
+        info_layout.addWidget(discovered_value)
 
         # ===== UNLOCK CONDITION =====
+        info_layout.addSpacing(14)
         unlock_label = QLabel("UNLOCK CONDITION")
-        unlock_label.setStyleSheet("""
-            color: #56D4C9;
+        unlock_label.setStyleSheet(f"""
+            color: {aero.AQUA};
             font-size: 10px;
             font-weight: bold;
             font-family: 'DM Sans';
             background: transparent;
             letter-spacing: 0.5px;
         """)
-        main_layout.addWidget(unlock_label)
+        info_layout.addWidget(unlock_label)
 
         unlock_value = QLabel(self.get_unlock_condition())
         unlock_value.setStyleSheet("""
@@ -235,7 +260,7 @@ class FishDetailsWindow(QWidget):
             background: transparent;
         """)
         unlock_value.setWordWrap(True)
-        main_layout.addWidget(unlock_value)
+        info_layout.addWidget(unlock_value)
 
         # The flavour line sits under the real condition rather than replacing
         # it, which is what used to happen.
@@ -252,9 +277,12 @@ class FishDetailsWindow(QWidget):
                 background: transparent;
             """)
             flavour_label.setWordWrap(True)
-            main_layout.addWidget(flavour_label)
+            info_layout.addSpacing(10)
+            info_layout.addWidget(flavour_label)
 
-        main_layout.addStretch()
+        # No trailing stretch: the window is about to be sized to exactly what
+        # the content needs, so there is no leftover space to push against.
+        self._fit_to_content(main_layout)
 
         # Enable dragging
         self.drag_position = None
@@ -316,6 +344,11 @@ class FishDetailsWindow(QWidget):
     # The hero is a bare sprite on no panel, so it can be generously large.
     HERO_W, HERO_H = 232, 150
 
+    # Fixed width, measured height. The bounds stop a one-line fish looking
+    # stunted and keep the longest description on screen.
+    WIDTH = 360
+    MIN_HEIGHT, MAX_HEIGHT = 430, 700
+
     @staticmethod
     def _crop_to_content(pixmap):
         """Trim the transparent border off a sprite frame.
@@ -367,18 +400,61 @@ class FishDetailsWindow(QWidget):
         unlock_type = unlock.get("type", "unknown")
         value = unlock.get("value", 0)
         amount = f"{value:,}" if isinstance(value, (int, float)) else str(value)
+        window_label = WINDOW_LABELS.get(unlock.get("window", ""), "at any hour")
+
+        # Half-minute thresholds exist, and "0.5 minutes" reads like a bug
+        def duration(mins):
+            # Every branch below is evaluated to build the dict, including for
+            # day_night, whose value is a word rather than a number
+            if not isinstance(mins, (int, float)):
+                return str(mins)
+            if mins < 1:
+                return f"{int(round(mins * 60))} seconds"
+            whole = int(mins)
+            return f"{whole} minute" if whole == 1 else f"{whole} minutes"
 
         conditions = {
             "char_count": f"Type {amount} characters in one day",
+            "total_chars": f"Type {amount} characters in total, across every day",
             "typing_speed": f"Reach {amount} WPM in one day",
-            "focus": f"Type for {amount} minutes without pausing for more than a minute",
-            "burst": f"Hold 50 WPM or more for {amount} minutes",
+            # 30 seconds, not a minute - this reads longest_focus_today, which
+            # UnlockManager breaks on a gap longer than its 30 second grace.
+            "focus": f"Type for {duration(value)} without pausing for more than 30 seconds",
+            "burst": f"Hold 50 WPM or more for {duration(value)}",
             "streak": f"Type on {amount} days in a row",
-            "day_night": ("Only appears during the day" if value == "day"
-                          else "Only appears at night"),
+            "time_window": f"Type {amount} characters {window_label}",
             "random": "Can turn up at any time, purely by chance",
         }
         return conditions.get(unlock_type, f"Unknown condition: {unlock_type}")
+
+    def _fit_to_content(self, layout):
+        """Size the window to exactly the height its content needs.
+
+        Word-wrapped labels are the awkward part: a QLabel does not advertise
+        heightForWidth unless its size policy says so, and without that the
+        layout measures a paragraph as one line and the window comes out far too
+        short. Turning it on for the wrapped labels first makes the layout's own
+        heightForWidth trustworthy.
+        """
+        for label in self.findChildren(QLabel):
+            if label.wordWrap():
+                policy = label.sizePolicy()
+                policy.setHeightForWidth(True)
+                label.setSizePolicy(policy)
+                label.setMinimumWidth(1)   # never widen the window to fit text
+
+        if layout.hasHeightForWidth():
+            height = layout.heightForWidth(self.WIDTH)
+        else:
+            height = layout.sizeHint().height()
+
+        height = max(self.MIN_HEIGHT, min(self.MAX_HEIGHT, height))
+        self.setFixedSize(self.WIDTH, height)
+        self.main_container.setGeometry(0, 0, self.WIDTH, height)
+
+    def glass_backdrop(self):
+        """The blurred art this window's glass refracts, as LiquidMixin expects."""
+        return self._backdrop
 
     def get_unlock_flavour(self):
         return self.fish_data.get("unlock", {}).get("label_reason", "")

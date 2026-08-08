@@ -6,11 +6,14 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+from paths import data_path
+
 
 class TypingAquariumLogger:
     def __init__(self):
-        self.log_dir = Path("logs")
-        self.log_dir.mkdir(exist_ok=True)
+        # Not "logs" relative to the cwd: inside a bundle that is read-only
+        self.log_dir = Path(data_path("logs"))
+        self.log_dir.mkdir(parents=True, exist_ok=True)
 
         self.session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
 
