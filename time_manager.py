@@ -24,6 +24,9 @@ DAY_START_HOUR = 2
 # beyond this stops reading as an aquarium and starts reading as a shoal.
 TANK_CAPACITY = 8
 
+# A day needs more than this many characters to count towards a streak.
+STREAK_MIN_CHARS = 100
+
 # A gap longer than this ends the current sitting at the keyboard.
 SESSION_GAP = 120.0
 
@@ -190,18 +193,12 @@ class UnlockManager:
         print(f"📊 Saved chars: {data.get('total_chars_today', 0)}")
 
         if saved_date != current_logical_date:
-            # New day - reset daily stats
-            yesterday_logical_date = (datetime.now() - timedelta(days=1)
-                                      if datetime.now().hour >= 2
-                                      else datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
-
-            if data["last_saved_date"] == yesterday_logical_date and data["total_chars_today"] > 100:
-                data["streak_days"] += 1
-            elif data["last_saved_date"] != yesterday_logical_date:
-                data["streak_days"] = 1
-
             self._archive_day(data, saved_date)
             self._reset_daily_stats(data, current_logical_date)
+
+        # Always, not only on a new day: the stored number may be stale from a
+        # session that spanned midnight without ever passing through here.
+        self._recompute_streak(data)
 
         return data
 
@@ -228,6 +225,40 @@ class UnlockManager:
             data[key] = list(value) if isinstance(value, list) else value
         data["hourly_activity"] = {}
         data["last_saved_date"] = current_logical_date
+
+    def _recompute_streak(self, data=None):
+        """Derive the streak from the record, rather than counting it up.
+
+        It used to be a stored number nudged in one place only: the launch path.
+        Two things went wrong with that. An app left open - which is how this one
+        is meant to run - never revisited it, so somebody typing every day for a
+        week still showed the streak they had when they last quit, and the fish
+        gated on streaks could not be earned at all. And returning after a break
+        set it to 1 before a single key had been pressed.
+
+        Counting back through daily_history each time cannot drift: it is a
+        reading of what actually happened, so it self-corrects however the app
+        is used.
+        """
+        data = self.user_data if data is None else data
+        history = data.get("daily_history", {})
+
+        day = datetime.strptime(self._get_logical_date_string(), "%Y-%m-%d")
+        # Today counts only once enough has been typed. Before that the run
+        # standing behind it is still shown, so the number does not drop to zero
+        # every morning and climb back an hour later.
+        streak = 1 if data.get("total_chars_today", 0) > STREAK_MIN_CHARS else 0
+
+        day -= timedelta(days=1)
+        while True:
+            entry = history.get(day.strftime("%Y-%m-%d"))
+            if not entry or entry.get("chars", 0) <= STREAK_MIN_CHARS:
+                break
+            streak += 1
+            day -= timedelta(days=1)
+
+        data["streak_days"] = streak
+        return streak
 
     def _get_logical_date_string(self):
         now = datetime.now()
@@ -271,9 +302,14 @@ class UnlockManager:
             self._archive_day(self.user_data, self.user_data["last_saved_date"])
             self._reset_daily_stats(self.user_data, current_logical_date)
             self.current_session_seconds = 0.0
+            self._recompute_streak()
 
         self.user_data["total_chars_today"] += 1
         self.user_data["total_chars_all_time"] = self.user_data.get("total_chars_all_time", 0) + 1
+
+        # The one keystroke that makes today count
+        if self.user_data["total_chars_today"] == STREAK_MIN_CHARS + 1:
+            self._recompute_streak()
 
         # Per-hour buckets for the "Today by Hour" chart
         hour_key = str(datetime.now().hour)
