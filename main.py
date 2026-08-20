@@ -101,7 +101,12 @@ def main():
                 "cpm": 0,
                 "wpm": current_live_wpm
             }
-            total_time = time_manager.total_active_time
+            # Time actually spent typing, not time sitting at the keyboard.
+            # total_active_time counts any gap under two minutes, so a coffee
+            # break landed in a card labelled "Total typing time" - it read
+            # 18 minutes for 5 minutes of work. Statistics still shows the
+            # session figure separately, under "At keyboard", where it belongs.
+            total_time = time_manager.user_data.get("typing_seconds_today", 0.0)
             bridge.stats_updated.emit(stats, total_time)
 
         # Menu bar icon, and the notifications that ride on it

@@ -196,8 +196,9 @@ class UnlockManager:
             self._archive_day(data, saved_date)
             self._reset_daily_stats(data, current_logical_date)
 
-        # Always, not only on a new day: the stored number may be stale from a
+        # Always, not only on a new day: the stored numbers may be stale from a
         # session that spanned midnight without ever passing through here.
+        self._recompute_all_time(data)
         self._recompute_streak(data)
 
         return data
@@ -225,6 +226,25 @@ class UnlockManager:
             data[key] = list(value) if isinstance(value, list) else value
         data["hourly_activity"] = {}
         data["last_saved_date"] = current_logical_date
+
+    def _recompute_all_time(self, data=None):
+        """Reconcile the all-time character count against the daily record.
+
+        It was a running counter and nothing else, so any day it did not see -
+        history recovered from logs, a save restored from backup, a reset - was
+        simply absent from it forever. The result was an "all time" figure of a
+        few thousand sitting under a history holding ninety.
+
+        Taking the larger of the counter and the record keeps whichever is more
+        complete: the sum repairs a counter that missed days, and the counter
+        survives a history that has been pruned.
+        """
+        data = self.user_data if data is None else data
+        recorded = sum(day.get("chars", 0) for day in data.get("daily_history", {}).values())
+        recorded += data.get("total_chars_today", 0)
+
+        data["total_chars_all_time"] = max(data.get("total_chars_all_time", 0), recorded)
+        return data["total_chars_all_time"]
 
     def _recompute_streak(self, data=None):
         """Derive the streak from the record, rather than counting it up.
@@ -302,6 +322,7 @@ class UnlockManager:
             self._archive_day(self.user_data, self.user_data["last_saved_date"])
             self._reset_daily_stats(self.user_data, current_logical_date)
             self.current_session_seconds = 0.0
+            self._recompute_all_time()
             self._recompute_streak()
 
         self.user_data["total_chars_today"] += 1
