@@ -39,7 +39,7 @@ DEFAULT_SETTINGS = {
     "tank_background": "aquarium_background.png",
     "notify_new_fish": True,
     "notify_daily_reminder": False,
-    "master_volume": 70,
+    "master_volume": 45,
     # Off by default - unrequested audio from a background app is the fastest
     # way to get it quit.
     "music_enabled": False,

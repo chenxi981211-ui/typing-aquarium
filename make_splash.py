@@ -23,7 +23,7 @@ import numpy as np
 
 RATE = 44100
 OUT = "assets/sounds/unlock.wav"
-LENGTH = 0.85
+LENGTH = 0.62
 
 rng = np.random.default_rng(11)
 
@@ -50,51 +50,64 @@ def bloop(start, f_from, f_to, level, decay, attack=0.012, sweep=0.10):
     return out
 
 
-def wet_texture(start, level, decay):
-    """Soft filtered noise - the water around the droplet, not the droplet."""
+def spray(start, level, decay, low=18, high=90):
+    """The sound of water breaking - a band of noise, not a hiss.
+
+    Two running means at different widths, subtracted: the wide one is
+    everything below the band, the narrow one everything below the top of it,
+    so the difference is the band between. Keeping the very top out is what
+    stops it turning into the harsh sss that made the first attempt unpleasant.
+    """
     n = int(LENGTH * RATE)
     out = np.zeros(n)
     begin = int(start * RATE)
-    length = min(n - begin, int(0.35 * RATE))
+    length = min(n - begin, int(0.30 * RATE))
     if length <= 0:
         return out
 
-    noise = rng.normal(0, 1, length)
-    # Cheap low-pass: a running mean. Unfiltered noise is hiss, and hiss is
-    # exactly the harsh edge being designed out here.
-    window = 28
-    noise = np.convolve(noise, np.ones(window) / window, mode="same")
+    noise = rng.normal(0, 1, length + high * 2)
+    wide = np.convolve(noise, np.ones(low) / low, mode="same")
+    wider = np.convolve(noise, np.ones(high) / high, mode="same")
+    band = (wide - wider)[:length]
+    band /= (np.abs(band).max() or 1.0)
 
     t = np.arange(length) / RATE
-    envelope = (1.0 - np.exp(-t / 0.006)) * np.exp(-t / decay)
-    out[begin:begin + length] = level * envelope * noise
+    envelope = (1.0 - np.exp(-t / 0.004)) * np.exp(-t / decay)
+    out[begin:begin + length] = level * envelope * band
     return out
 
 
 def build():
     audio = np.zeros(int(LENGTH * RATE))
 
-    # The main droplet
-    audio += bloop(0.00, 430, 880, 0.55, decay=0.16)
-    # A smaller one just behind it, the way a real drop rings twice
-    audio += bloop(0.13, 620, 1180, 0.22, decay=0.10)
-    # A third, barely there, for the tail
-    audio += bloop(0.26, 780, 1420, 0.09, decay=0.07)
+    # The spray goes first and loudest - this is the splash itself
+    audio += spray(0.000, 0.34, decay=0.045)
+    audio += spray(0.045, 0.16, decay=0.070, low=26, high=130)
 
-    # A little weight underneath so it does not sound thin on laptop speakers
-    audio += bloop(0.00, 150, 210, 0.20, decay=0.22, attack=0.020, sweep=0.16)
+    # A light plop, pitched up from the previous version so it reads as a small
+    # fish rather than a rock going in
+    audio += bloop(0.005, 700, 1500, 0.34, decay=0.085)
 
-    audio += wet_texture(0.00, 0.10, decay=0.05)
-    audio += wet_texture(0.13, 0.05, decay=0.04)
+    # Droplets scattering afterwards. Staggered and each a little higher, which
+    # is most of where the cuteness comes from - a single tone sounds like a
+    # notification, several tumbling sound like water.
+    for start, f_from, f_to, level, decay in (
+        (0.075, 1150, 2000, 0.16, 0.055),
+        (0.120, 1500, 2500, 0.11, 0.045),
+        (0.175, 1900, 3000, 0.075, 0.038),
+        (0.240, 2300, 3500, 0.045, 0.030),
+        (0.310, 2700, 3900, 0.025, 0.026),
+    ):
+        audio += bloop(start, f_from, f_to, level, decay=decay, attack=0.005, sweep=0.05)
 
-    # A gentle fade on the very end, so nothing is cut off mid-ring
-    tail = int(0.08 * RATE)
+    # Only a touch of weight. Too much bass is what made it feel heavy before.
+    audio += bloop(0.000, 190, 260, 0.10, decay=0.11, attack=0.014, sweep=0.10)
+
+    tail = int(0.07 * RATE)
     audio[-tail:] *= np.linspace(1.0, 0.0, tail)
 
     peak = np.abs(audio).max() or 1.0
-    # Deliberately well below the old 0.85 - this fires every time a fish
-    # arrives, and a background app should not startle anyone.
-    audio *= 0.42 / peak
+    audio *= 0.40 / peak
     return np.clip(audio, -1.0, 1.0)
 
 
