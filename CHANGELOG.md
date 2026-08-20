@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.1 — 2026-08-20
+
+### Changed
+
+**A gentler sound when a fish arrives.** The old one built to its loudest point
+1.76 seconds after the fish had already appeared and peaked at 0.85 — a sting,
+at a volume that made a background app feel like it wanted attention. It is now
+a short excerpt of a real water recording: 0.75 seconds, peaking at 0.26, cut
+just before the droplet so the attack survives and faded at both ends so there
+is no click.
+
+**Quieter out of the box.** The default master volume drops from 70 to 45. This
+sound fires on every catch, so it should still be pleasant on the twentieth one.
+Existing installs keep whatever volume you have already set.
+
+---
+
 ## 1.1.0 — 2026-08-20
 
 All four of these were found by testing the 1.0.0 build the way someone
