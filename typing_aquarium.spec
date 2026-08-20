@@ -69,8 +69,8 @@ app = BUNDLE(
     info_plist={
         "CFBundleName": "Typing Aquarium",
         "CFBundleDisplayName": "Typing Aquarium",
-        "CFBundleShortVersionString": "1.0.0",
-        "CFBundleVersion": "1.0.0",
+        "CFBundleShortVersionString": "1.1.0",
+        "CFBundleVersion": "1.1.0",
         "NSHighResolutionCapable": True,
         # Counting keystrokes system-wide needs Accessibility. macOS shows this
         # string when it asks, so it should say plainly what is being counted.
